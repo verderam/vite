@@ -45,7 +45,7 @@ const preDel=function(context){
 }
 module.exports = {
   before: {
-    all: [ authenticate('config.strategies') ],
+    all: [ authenticate(config.authentication.strategies) ],
     find: [],
     get: [],
     create: [validate],

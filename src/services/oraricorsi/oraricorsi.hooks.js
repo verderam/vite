@@ -9,7 +9,7 @@ const normalize=function(context){
 
 module.exports = {
   before: {
-    all: [authenticate('config.strategies')],
+    all: [authenticate(config.authentication.strategies)],
     find: [],
     get: [],
     patch: [  ],

@@ -5,7 +5,7 @@ const { restrictToOwner } = require('feathers-authentication-hooks');
 const { hashPassword } = require('feathers-authentication-local').hooks;
 
 const restrict = [
-  authenticate('config.strategies'),
+  authenticate(config.authentication.strategies),
     restrictToOwner({
       idField: 'username',
       ownerField: 'username'
@@ -13,7 +13,7 @@ const restrict = [
 ];
 
 const restrictByRole = [
-  authenticate('config.strategies'),
+  authenticate(config.authentication.strategies),
   authHooks.hasRoleOrRestrict({
     roles: ['admin'],
     restrict: {public:true}
@@ -23,7 +23,7 @@ const restrictByRole = [
 module.exports = {
   before: {
     all: [],
-    find: [ authenticate('config.strategies') ],
+    find: [ authenticate(config.authentication.strategies) ],
     get: [ ...restrict ],
     create: [ hashPassword() ],
     update: [ ...restrict, hashPassword() ],

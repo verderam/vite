@@ -5,10 +5,10 @@ module.exports = {
     all: [],
     find: [],
     get: [],
-    all: [ authenticate('config.strategies') ],
-    all: [ authenticate('config.strategies') ],
-    all: [ authenticate('config.strategies') ],
-    all: [ authenticate('config.strategies') ],
+    all: [ authenticate(config.authentication.strategies) ],
+    all: [ authenticate(config.authentication.strategies) ],
+    all: [ authenticate(config.authentication.strategies) ],
+    all: [ authenticate(config.authentication.strategies) ],
   },
 
   after: {

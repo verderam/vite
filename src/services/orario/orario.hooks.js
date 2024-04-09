@@ -6,7 +6,7 @@ const validate = function(hook){
 
 module.exports = {
   before: {
-    all: [ authenticate('config.strategies') ],
+    all: [ authenticate(config.authentication.strategies) ],
     find: [],
     get: [],
     create: [],
