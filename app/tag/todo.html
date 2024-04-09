@@ -1,0 +1,125 @@
+﻿<todo>
+	<section class="{tbl} paper">
+		<h4>{app.fmt.title(tbl)}</h4>
+		<div id="container-{tbl}" class="" >
+			<table class="bordered striped tf">
+				<colgroup>
+					<col style="width:1.8em;text-align:center" />
+					<col />
+					<col style="width:1.8em;text-align:center" />
+				</colgroup>
+				<thead>
+					<tr>
+						<th>
+							<a onclick="{add}" href="javascript:" title="inserisci una nuova cosa da fare">
+								<i class="fa fa-file-o"></i>
+							</a>
+						</th>
+						<th>Cosa da fare</th>	
+						<th>
+							<a onclick="{read}" href="javascript:" title="aggiorna">
+								<i class="fa fa-refresh"></i>
+							</a>
+						</th>										
+					</tr>
+				</thead>
+				<tbody>
+					<tr each="{r,i in data}" ondblclick="{edit}">
+						<td>
+							<a onclick="{edit}" href="javascript:" hide="{r==crnt}">
+								<i class="fa fa-pencil-alt"></i>
+							</a>
+							<a href="javascript:" onclick="{cancel}" show="{r==crnt}">
+								<i class="fa fa-ban"></i>
+							</a>							
+						</td>
+						<td>
+							<span if="{r!=crnt}">{r.todo}</span>
+							<input if="{r==crnt}" ref="todo" value="{r.todo}" class="" required />						
+						</td>						
+						<td class="ac">	
+							<a href="javascript:" class="error" onclick="{remove}" if="{r!=crnt}" tabindex="-1">
+								<i class="fa fa-trash-alt"></i>
+							</a>					
+							<a href="javascript:" onclick="{save}" if="{r==crnt}">
+								<i class="fa fa-save"></i>
+							</a>
+						</td>
+					</tr>
+				</tbody>				
+			</table>
+		</div>
+		<p>
+			<button class="success" onclick="{add}" accesskey="n" title="aggiungi una nuova cosa da fares [ALT+N]">
+				<i class="fa fa-file-o"></i> 
+				Nuova
+			</button>
+		</p>
+	</section>
+	<style>
+		
+	</style>	
+	<script>
+		var me=this
+		me.tbl='todo'
+		me.data=[]
+		me.store=app.f.service(me.tbl)
+		me.vm=function(rsp){
+			me.raw=rsp
+			me.update({data:rsp && rsp.data||[]})
+		}
+		me.kp=function(e){
+			if (e.keycode===13 && me.crnt) me.save(e)
+		}
+		me.add=function(){
+			me.data.push({todo:null,todobreve:null})
+			me.update({data:me.data,crnt:me.data[me.data.length-1]})
+		}
+		me.edit=function(e){
+			me.update({crnt:e.item.r})
+		}
+		me.cancel=function(e){
+			me.update({crnt:false})
+		}		
+		me.remove=function(e){
+			var r=e.item.r
+			if (!confirm('Vuoi davvero eliminare la cosa da fare # '+r._id+'?')) return
+			if (!r._id){
+				me.data.length=me.data.length-1
+				me.update({data:me.data})
+			}else{
+				me.store.remove(r._id).catch(app.fn.err) //.then(me.read).catch(app.fn.err)
+			}
+		}		
+		me.read=function(){me.store.find({query: {$limit: 999,$sort: {todo:1}}}).then(me.vm).catch(app.fn.err)}
+		me.save=function(e){
+			Object.keys(me.refs).map(function(k){
+				me.crnt[k]=me.refs[k].value
+			})			
+			if (!me.crnt.todo){
+				app.fn.notify('Inserire un nome per la todo corrente')
+				document.querySelector('[ref="todo"]').focus()
+				return
+			}
+			if (me.crnt._id){
+				me.store.update(me.crnt._id,me.crnt).catch(app.fn.err)
+			}else{
+				me.store.create(me.crnt).catch(app.fn.err)
+			}
+		}		
+		me.saved=function(data){
+			me.update({crnt:false})
+		}		
+		me.init=function(){
+			if (!me.data.length) me.read()
+		}
+		me.on('before-mount', me.init)		
+		me.store.on('removed',me.read)
+		me.store.on('updated',me.read)
+		me.store.on('created',me.read)		
+		me.on('updated',function(){
+			var ctrl=document.querySelector('[ref="todo"]')
+			ctrl && ctrl.focus && ctrl.focus()
+		})	
+	</script>
+</todo>

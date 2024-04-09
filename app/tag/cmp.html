@@ -1,0 +1,88 @@
+﻿<dg>
+	<div id="grid-{oid}" class="grid"></div>
+	<style>
+		.grid{height:80vh;width:100%;min-height:100%;max-height:100%}
+	</style>
+	<script>
+		const me=this
+		if (!opts.store) return 
+		me.oid=app.oid()
+		me.store=app.stores[opts.store]
+		if (!me.store)  return 		
+		me.schema=opts.schema||me.store.schema
+		me.conf={
+			showNewRow : true,
+			editable: opts.editable || true,
+			allowFreezingColumns:true,
+			hasFocus:true,
+			showPerformance: false,
+			schema:me.schema,
+			columnSelectorText: 'Mostra/nascondi:',
+			clearSettingsOptionText: 'Elimina impostazioni salvate',
+			hideColumnText: 'Nascondi',
+			showOrderByOptionTextAsc: 'Ordinamento crescente per: %s',
+			showOrderByOptionTextDesc: 'Ordinamento decrescente per: %s',
+			copyText: 'Copia',
+		}
+		me.save=(data,e) => {
+			let store=me.store
+			if (!store) return
+			const created = (dbData) => {
+				e.cell.data=dbData
+			}
+			if (store.validate){
+				if (!validate(data)) return
+			}
+			if (data._id){
+				store.update(data._id,data).catch(console.warn)
+			}else{
+				data._id=app.oid()
+				e.cell.data._id=data._id
+				store.create(data).then(created).catch(console.warn)
+			}
+		}	
+			
+		me.init= () => {
+			me.deps=[
+				'//unpkg.com/canvas-datagrid@0.18.30/dist/canvas-datagrid.js'
+			]
+			LazyLoad.js(me.deps)
+		}
+		me.load=()=>{
+			me.store.find({query:{$limit:99999}}).then(me.vm).catch(app.fn.error)
+		}
+		me.ready=() => {
+			let cnt=document.getElementById('grid-'+me.oid)
+			cnt.innerHTML=''
+			cnt.style.height="calc(100vh - "+String(cnt.getBoundingClientRect().top+10)+"px"
+			me.grid=canvasDatagrid(me.conf)
+			me.grid.addEventListener('contextmenu', (e) => {
+				e.items.push({
+					title:'Elimina riga', click: (ev) =>{
+						if (!e.cell) return
+						if (!confirm('Eliminare la riga # '+String(e.cell.rowIndex+1)+'?')) return
+						let id=e.cell.data && e.cell.data._id
+						if (!id) return
+						me.store.remove(id).catch(app.fn.error)
+						me.grid.deleteRow(e.cell.rowIndex)
+					}
+				})
+			})			
+			me.grid.addEventListener('endedit', (e) => {
+				me.cx=e.cell.columnIndex
+				me.cy=e.cell.rowIndex
+				me.save(e.cell && e.cell.data,e)                   
+			})
+			cnt.appendChild(me.grid)
+			me.load()
+		}
+		me.vm=(rsp)=>{
+			me.grid.data=rsp && rsp.data||[]
+		//	me.grid.draw()
+		}
+		me.store.on('removed',me.load)
+		me.on('before-mount',me.init)
+		me.on('mount',me.ready)
+		
+	</script>
+</dg>

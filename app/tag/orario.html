@@ -1,0 +1,491 @@
+﻿<orario>
+	<nav class="tb hp flex">
+		<form onsubmit="{search}" class="">
+			Settimana del <input type="date" onblur="{setSettimana}" value="{dal}" max="{maxDal}" />
+			<a href="#" onclick="{setSub}" title="Settimana precedente">⬅️</a>
+			<a href="#" onclick="{setAdd}"  title="Settimana successiva">➡️</a>	
+			<span if="{isAdmin||isDirector}">
+				&nbsp; Docente
+				<select   onchange="{setUsername}">
+					<option value=""></option>
+					<option each="{m in rubrica}" key="{m._id}" no-reorder value="{m.username}" selected="{m.username===username}">	
+						{m.username}: {m.cognome} {m.nome}
+					</option>
+				</select>	
+			</span>			
+			<input if="{!isAdmin}" value="{username}" type="hidden" />
+			<button type="submit" data-tooltip="visualizza o aggiorna">
+				<i class="fa fa-filter"></i>
+			</button>
+			<a onclick="{copy}" class="button bg-orange" if="{data.length}" data-tooltip="copia l'orario di questa settimana per incollarlo in un'altra">
+				<i class="fa fa-copy"></i>
+			</a>
+			<a onclick="{paste}" if="{clipBoard.data && clipBoard.data.length}" class="button" data-tooltip="incolla l'orario copiato">
+				<i class="fa fa-paste"></i>
+			</a>
+			<a onclick="{clear}" if="{data.length}" class="button error close" data-tooltip="svuota completamente la tabella, eliminando tutte le voci">
+				<i class="fa fa-trash-alt" ></i>
+			</a>		
+			<a onclick="{prePrint}" if="{username}" class="button bg-olive" data-tooltip="stampa questa pagina">
+				<i class="fa fa-print"></i>
+			</a>
+			<!--			
+			<a onclick="{preA23}" if="{username}" class="button" data-tooltip="allegato 23 relativo a questo mese">
+				<i class="fa fa-file-word"></i>
+			</a>
+			-->
+			<a title="mostra/nascondi abbreviazioni"  class="button bg-gray" onclick="{switchAbbrevia}">
+				<i class="fa fa-{(abbrevia)?'eye-slash':'eye'}"></i>
+			</a>			
+		</form>	
+		<form id="orario-prn" name="prifo" if="{username}" action="{app.settings.reportUrl}?report=doc{(isAdmin) ? 'ente' : ''}" target="_blank" method="POST" onsubmit="{prePrint}"  class="h">
+			<button type="submit" class="h" title="stampa su pdf">
+				<i class="fa fa-file-pdf-o"></i>
+			<!-- </input> -->		
+			<input type="hidden" id="orario-frag" name="frag" />
+			<input type="hidden" name="prefix" value="{app.settings.prefix}" />
+			<input type="hidden" id="orario-data" name="data" />
+		</form>
+	</nav>
+	<section class="withtb orario" >
+		<article class="paper" style="page-break-after:always" if="{username}">
+			<h3 class="">
+				Orario dal {app.fmt.date(dal)} al {app.fmt.date(al)} - {app.fmt.persona(username)}
+			</h3>
+			<div id="prico">
+				<table id="oratbl" class="bordered fw oratbl">
+					<thead>
+						<tr>
+							<th style="width:6em" ondrop="{dropDel}" ondragover="{allowDrop}">
+								Giorno/Ora
+							</th>
+							<th class="ac {(o.ora < 1 || o.ora >9)  ? 'np' : false}" each="{o in ore}" no-reorder key="{o._id}" ondrop="{dropDel}" ondragover="{allowDrop}">
+								{o.ora}<br />
+								<small>{o.dalle} - {o.alle}</small>
+							</th>
+						</tr>
+					</thead>
+					<tbody class="taborario" show="{giorni.length}">
+						<tr each="{g in giorni}" no-reorder key="{g._id}" if="{ore && ore.length}">
+							<td class="tdgiorno ac"> {app.fmt.shrtDate(g)} </td>
+							<td each="{o in ore}" no-reorder class="dz ac {(o.ora < 1 || o.ora >9)  ? 'np' : false}" key="{o._id}" data-giorno="{g}" data-ora="{o.ora}" id="{g}-{o.ora}" ondrop="{drop}" ondragover="{allowDrop}">
+								<p each="{i,ix in data}" no-reorder key="{i._id}" if="{i.giorno==g && i.ora==o.ora}" draggable="true" ondragstart="{drag}"ondragover="{allowDrop}" data-giorno="{g}" data-ora="{o.ora}" class="tc {''+i.stato+''} dz {i.tipologiabreve==='DZ' ? 'dista' :''}" data-tooltip="Trascinare questa voce altrove per spostarla; tenere premuto CTRL per copiarla; fare doppio clic per modificarla o eliminarla" ondblclick="{edit}">
+									<span class="tdd mat" data-giorno="{g}" data-ora="{o.ora}">
+										{i.tipologiabreve==='DO' ||  i.tipologiabreve==='DZ' || i.tipologiabreve==='DF'   ? fmtDisciplina(i.disciplinabreve):app.fmt.tipologia(i.tipologiabreve)}<br /></span>
+									<b class="tdu" data-giorno="{g}" data-ora="{o.ora}">{fmtCorso(i.corsobreve)}</b>
+									<span class="label np" each="{l in i.etichette}">
+										{l}
+									</span>
+									<a if="{ix}" style="color:red!important" onclick="{loadCorso}" data-tooltip="Attribuzione in conflitto!">
+										<i class="fa fa-exclamation-triangle"></i>
+									</a>
+								</p>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<section class="hp" style="background-color:lightcyan;margin-top:.5em;padding:.5em">
+					Componi un'attività					
+					<span class="nc" draggable="true" ondragstart="{drag}">
+						<i class="fa fa-bars"></i> 
+						<select ref="tipologiabreve"  onchange="{setTipo}">
+							<option value="">[tipologia]</option>
+							<option each="{m in tipologie}" key="{m._id}" value="{m.tipologiabreve}">
+								{m.tipologiabreve}: {m.tipologia}
+							</option>
+						</select>						
+						<span id="labelzone"  show="{showLabel}">
+							<span class="label" each="{l,lix in lbls}" onclick="{delLabel}">
+								{l}
+							</span>
+							&nbsp;
+							<select onchange="{setLabel}">
+								<option value="" selected="{!showLabel}">[etichetta]</option>
+								<option each="{m in labels}" key="{m._id}" value="{m.labelbreve}">
+									{m.labelbreve}: {m.label}
+								</option>
+							</select>
+						</span>		
+						<select ref="corsobreve"  show="{showCorso}">
+							<option value="" selected="{!showCorso}">[corso]</option>
+							<option each="{m in corsi}" key="{m._id}" value="{m.corsobreve}">
+								{m.corsobreve}: {m.corso}
+							</option>
+						</select>					
+						<select ref="disciplinabreve"  show="{showCorso}">
+							<option value="" selected="{!showCorso}">[disciplina]</option>
+							<option each="{m in discipline}" key="{m._id}" value="{m.disciplinabreve}">
+								{m.disciplinabreve}: {m.disciplina}
+							</option>
+						</select>											
+						<input type="hidden" ref="username"	value="{username}" />
+						e trascinala nella griglia per salvarla.
+					</span>
+				</section>			
+			<p style="margin-top:1em" class="ar">
+					<a title="mostra/nascondi abbreviazioni" onclick="{switchAbbrevia}" class="lnk np">
+						Mostra nomi corso <span show="{abbrevia}">completi</span>
+						<span hide="{abbrevia}">abbreviati</span>
+					</a> - Ore totali n° <b class="text-blue">{tot}</b></p>
+			<div id="tmp" class="hp h"></div>
+		</article>
+	</section>
+	<ora if="{cr._id}" cr="{cr}"></ora>
+	<style>
+		.nc select, .nc input{width:auto}
+		.tb .button {margin-right:1em}
+	</style>	
+	<script>
+		var me=this
+		me.cr={}
+		me.data=[]
+		me.lbls=[]
+		me.maxDal=false
+		me.tot=0 
+		me.clipBoard={}
+		me.isAdmin=false
+		me.isDirector=false
+		me.abbrevia=true
+		me.username=(me.isAdmin) ? null : app.user
+		me.road=app.road
+		me.fltCorsi=function(r){return !r.stato}
+		me.corsi=app.stores.corsi.data && app.stores.corsi.data.filter(me.fltCorsi)||[]
+		me.ore=app.stores.ore.data||[]
+		me.tipologie=app.stores.tipologie.data||[]
+		me.labels=app.stores.labels.data||[]
+		me.rubrica=(me.isAdmin||me.isDirector )? app.stores.rubrica.data||[] : [{username:me.username}]
+		me.discipline=app.stores.discipline.data||[]
+		me.store=app.f.service('orari')
+		me.dal=moment().startOf('week').format('YYYY-MM-DD')
+		me.al=moment().endOf('week').format('YYYY-MM-DD')
+		me.error=function(msg){
+			app.fn.notify(JSON.stringify(msg))
+		}
+		me.setGiorni=function(v){
+			me.giorni=[me.dal]
+			for (var i=1;i<6;i++){
+				var day=moment(me.dal).add(i,'days').format('YYYY-MM-DD')
+				if (day>me.al) return
+				me.giorni.push(day)
+			}
+			me.update({giorni:me.giorni})
+		}		
+		me.switchAbbrevia=function(e){
+			var abbr = ! me.abbrevia
+			me.abbrevia= abbr
+			me.update({abbrevia:abbr})
+		}
+		me.search=function(e){
+			e && e.preventDefault &&  e.preventDefault()
+			var criteria={$limit:999,username:me.username,$sort:{giorno:1,tipologiabreve:-1,disciplinabreve:1}}
+			criteria.$and=[ { giorno: { $gte: me.dal } }, { giorno: { $lte: me.al } } ]
+			me.store.find({query:criteria}).then(me.vm).catch(app.fn.err)
+		}		
+		me.vm=function(rsp){
+			me.setGiorni()
+			me.tot=rsp && rsp.data && rsp.data.length
+			me.update({data:rsp.data,tot:me.tot})
+		}
+		me.vmCattedre=function(rsp){
+			me.update({cattedre:rsp && rsp.data	||[]})
+		}
+		me.vmOre=function(rsp){
+			me.update({ore:rsp && rsp.data	||[]})
+		}
+		me.vmCorsi=function(rsp){
+			me.update({corsi:rsp && rsp.data && rsp.data.filter(me.fltCorsi) ||[]})
+		}
+		me.vmRubrica=function(rsp){
+			me.update({rubrica:rsp && rsp.data	||[]})
+		}
+		me.vmDiscipline=function(rsp){
+			me.update({discipline:rsp && rsp.data	||[]})
+		}
+		me.vmTipologie=function(rsp){
+			me.update({tipologie:rsp && rsp.data||[]})
+		}		
+		me.vmLabels=function(rsp){
+			me.update({labels:rsp && rsp.data||[]})
+		}		
+		me.setDal=function(e){
+			me.dal=moment(e.target.value).startOf('week').format('YYYY-MM-DD')
+			me.al=moment(e.target.value).endOf('week').format('YYYY-MM-DD')			
+			me.search()
+		}
+		me.setAl=function(e){
+			//me.al=e.target.value
+			me.dal=moment(e.target.value).startOf('week').format('YYYY-MM-DD')
+			me.al=moment(e.target.value).endOf('week').format('YYYY-MM-DD')
+			me.search()
+		}
+		me.setSub=function(e){
+			e && e.preventDefault()
+			const o = me.dal
+			const d = me.al
+			me.dal=moment(o).subtract(7,'days').startOf('week').format('YYYY-MM-DD')
+			me.al=moment(d).subtract(7,'days').endOf('week').format('YYYY-MM-DD')
+			me.search()
+		}
+		me.setAdd=function(e){
+			e && e.preventDefault()
+			const o = me.dal
+			const d = me.al
+			me.dal=moment(o).add(7,'days').startOf('week').format('YYYY-MM-DD')
+			me.al=moment(d).add(7,'days').endOf('week').format('YYYY-MM-DD')
+			me.search()
+		}
+
+		me.setSettimana=function(e){
+			me.al=moment(e.target.value).endOf('week').format('YYYY-MM-DD')
+			me.dal=moment(me.al).startOf('week').format('YYYY-MM-DD')
+			me.search()		
+		}
+		me.setUsername=function(e){
+			me.update({username:e && e.target && e.target.value})
+			me.search()
+		}
+		me.setTipo=function(e){
+			//# verifico se la tipologia ammette un'etichetta oppure no
+			//console.info('setTipo',e)
+			var t=me.refs.tipologiabreve.value
+			var flt=function(r){return r.tipologiabreve==t}
+			var tb=me.tipologie.filter(flt)
+			if (!tb.length) return 
+			me.update({
+				showLabel:tb[0].label || false,
+				showCorso:tb[0].corso || false
+			})
+		}
+		me.fmtDisciplina=function(e){
+			return app.fmt.disciplina(e)
+		}
+		me.fmtCorso=function(e){
+			return (me.abbrevia) ? e : app.fmt.corso(e) 
+		}		
+		me.init=function(){
+			if (!me.corsi.length) app.corsiLoad()
+			me.setGiorni()
+			me.isAdmin=app.isAdmin
+			me.isDirector=app.isDirector
+			me.rubrica=(me.isAdmin ||me.isDirector)? app.stores.rubrica.data||[] : [{username:me.username}]
+			var u={isAdmin:me.isAdmin,isDirector:me.isDirector}
+			if (me.isAdmin) {
+				u.username=null
+				u.maxDal=false
+			}else{
+				u.maxDal=moment(me.dal).add(2,'weeks').format('YYYY-MM-DD')
+				u.rubrica=me.rubrica
+				u.username=app.user
+			}
+			me.update(u)
+			//me.username=(me.isAdmin) ? null : app.user
+			app.pgs.orario=me
+			me.search()
+		}
+		me.prePrint=function(e){
+			e && e.preventDefault &&  e.preventDefault()
+			me.persona=app.fmt.persona(me.username)
+			/*
+			document.querySelector('#orario-data').value=JSON.stringify({data:me.data,persona:me.persona,tot:me.tot,dal:me.dal,al:me.al})
+			$('table .np').remove()
+			document.querySelector('#orario-frag').value=$()
+			document.querySelector('#orario-prn').submit()
+			*/
+			$('#tmp').html($('#prico').html())
+			$('#tmp .np').remove()
+			$('#orario-data').val(JSON.stringify({data:me.data,persona:me.persona,tot:me.tot,dal:me.dal,al:me.al}))			
+			$('#orario-frag').val($('#tmp').html())
+			$('#orario-prn').submit()
+		}
+		me.preA23=function(e){
+			e && e.preventDefault &&  e.preventDefault()
+			me.persona=app.fmt.persona(me.username)
+			$('#tmp').html($('#prico').html())
+			$('#tmp .np').remove()
+			$('#a23-data').val(JSON.stringify({data:me.data,persona:me.persona,tot:me.tot,dal:me.dal,al:me.al}))			
+			$('#a23-frag').val($('#tmp').html())
+			//console.log('a23', $('#a23-data').val())
+			$('#a23-frm').submit()
+		}
+		me.expPDF=function(e){
+			$('#orario-prn').submit()
+		}
+		me.allowDrop=function(e={}){
+			e.preventDefault && e.preventDefault()
+		}
+		me.drag=function(e={}){
+			me.clip=e.item && e.item.i || {}
+			me.copied=e.ctrlKey
+			me.dest=e
+		}
+		me.dragLbl=function(e={}){
+			me.clip=e.item || {}
+			me.dest=e
+			//log('Label dragged: ',me.clip,me.dest)
+		}
+		me.copy=function(e){
+			me.clipBoard={
+				corsobreve:me.corsobreve,
+				dal:me.dal,
+				data:me.data
+			}
+			me.update({clipBoard:me.clipBoard})
+		}
+		me.clear=function(e){
+			if (!confirm('Eliminare tutte le voci?')) return
+			me.data.map(function(r){
+				me.store.remove(r._id)
+			})
+		}
+		me.paste=function(e){		
+			if (me.lock) return
+			me.lock=true
+			var prevDate=moment(me.dal)
+			var newDate=moment(me.clipBoard.dal)
+			me.delta=prevDate.diff(newDate, 'days')
+			me.clipBoard.data.map(function(c){
+				var n=JSON.parse(JSON.stringify(c))
+				if (!me.isAdmin && n.username!=app.user) return
+				delete(n._id)
+				//n.corsobreve=me.corsobreve
+				n.stato='proposta'
+				n.giorno=moment(n.giorno).add(me.delta,'days').format('YYYY-MM-DD')
+				me.store.create(n).catch(app.fn.err)
+			})
+			setTimeout(function(){
+				me.update({lock:false})
+			},200)
+		}		
+		me.drop=function(e={}){
+			//console.info('drop: ',e)
+			var r={}
+			var act='Spostare'	
+			if (me.copied){
+				r=JSON.parse(JSON.stringify(me.clip))
+				delete(r._id)
+				me.copied=false
+				act='Copiare'
+			}else{
+				r=me.clip
+			}
+			////console.log('clip',me.clip)
+			var n=e.target.dataset
+			if (!r.username){
+				r.username=me.refs.username.value
+				act='Creare'
+			}
+			if (!me.isAdmin){
+				//console.log('not admin, ',r.username,app.user)
+				if (r.username!=app.user) return
+				if (n.giorno<app.editLimit){
+					app.fn.err('Non è possibile modificare le attività svolte in questa data. Rivolgersi al proprio responsabile.')
+					return 
+				}
+			}
+			if (!r.tipologiabreve) r.tipologiabreve=me.refs.tipologiabreve.value
+			if (!r.nocorso) r.nocorso=!me.showCorso
+			if (!r.nocorso){
+				if (!r.corsobreve) r.corsobreve=me.refs.corsobreve.value
+				if (!r.disciplinabreve) r.disciplinabreve=me.refs.disciplinabreve.value									
+			}
+			if (!r.etichette && me.lbls.length) r.etichette=me.lbls
+			me.lbls=[]
+			//if (!r.labelbreve && me.refs.labelbreve.value) r.labelbreve=me.refs.labelbreve.value
+			//var domanda = act+' questa voce ('+app.fmt.disciplina(r.disciplinabreve)+', '+app.fmt.tipologia(r.tipologiabreve)+') alla '+n.ora+'^ ora del '+app.fmt.date(n.giorno)
+			//if (act==='Creare') domanda+=' nel corso '+app.fmt.corso(r.corsobreve)
+			//if (!confirm(domanda+'?')) return
+			////console.log('target',n,e.target)			
+			r.giorno=n.giorno
+			r.ora=n.ora
+			r.stato='proposta'
+
+			if (r.anno){
+				delete(r._id)
+				delete(r.anno)
+			}
+			if (r.ore) delete (r.ore)
+			if (!r._id){
+				me.store.create(r).catch(app.fn.err)
+			}else{
+				me.store.update(r._id,r).catch(app.fn.err)
+			}
+			me.clip={}
+		}
+		me.edit=function(e){
+			var r=e.item && e.item.i || {}
+			me.update({cr:r})
+			//ora.unmount()
+			riot.mount('ora', {cr:r})
+			riot.update()
+		}
+		me.del=function(e){
+			var r=e.item && e.item.i || {}
+			if (!r._id) return
+			if (!confirm('Eliminare questa voce? ('+JSON.stringify(r)+')')) return
+			me.store.remove(r._id).catch(app.fn.err)
+		}		
+		me.dropDel=function(e){
+			var r=me.clip
+			if (!r._id) return
+			if (!me.isAdmin){
+				if (r.giorno<app.editLimit) return
+				if (r.username!=app.user) return
+			}			
+			me.store.remove(r._id).catch(app.fn.err)
+		}	
+		me.setLabel=function(e){
+			var v=e.target.value
+			if (!v) return
+			if (me.lbls.indexOf(v)>=0) return
+			me.lbls.push(v)
+			me.update({lbls:me.lbls})
+		}	
+		me.delLabel=function(e){
+			me.lbls.splice(e.item.l,1)
+			me.update({lbls:me.lbls})
+		}
+		me.loadCorso=function(e){
+			if (!(app.isAdmin || app.isDirector)) return
+			var d= e && e.item && e.item.i||{}
+			route('orari/'+d.corsobreve+'/'+d.giorno)
+		}			
+
+		me.read=me.search
+		me.store.on('created', me.search)
+		me.store.on('updated', me.search)
+		me.store.on('removed', me.search)
+		
+		me.road.on('corsi-loaded',me.vmCorsi)
+		me.road.on('ore-loaded',me.vmOre)
+		me.road.on('rubrica-loaded',me.vmRubrica)
+		me.road.on('tipologie-loaded',me.vmTipologie)
+		me.road.on('labels-loaded',me.vmLabels)
+		me.road.on('discipline-loaded',me.vmDiscipline)	
+		me.road.on('ora-close', function(){
+			me.update({cr:{}})
+			if (typeof(modalora)!=='undefined') modalora.checked=false
+		})	
+		me.road.on('log-in', me.init)
+
+		me.on('before-mount', me.init)
+
+/*** ROUTING */
+
+		var r = route.create()
+		r(rt)
+
+		function rt(view,user,day) {
+			// console.info('rt orario: ',user,day)
+			if (user) me.username=user
+			if (day){ 
+				me.dal=moment(day).startOf('week').format('YYYY-MM-DD')
+				me.al=moment(day).endOf('week').format('YYYY-MM-DD')
+			}
+			if (user||day) me.search()
+		}
+
+ /*** /ROUTING */
+
+	</script>
+</orario>

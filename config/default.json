@@ -1,0 +1,43 @@
+{
+  "host": "127.0.0.1",
+  "port": 7733,
+  "public": "../public/",
+  "ver":"24.04.09-a",
+  "admins":["orario","master"],
+  "directors":["tutor"],
+  "domain":"Villaggio",
+  "prefix":"vdr",
+  "slogan":"Villaggio Planning System",
+  "reportUrl":"/stampe/",
+  "booking":"quadro",
+  "paginate": {
+    "default": 200,
+    "max": 9999999
+  },
+  "mongodb": "mongodb://127.0.0.1:27017/vite",
+  "authentication": {
+    "secret": "4b0f29cb075ff5963feebffed071e1afcf0b1ba73658a5ace521c318443101701b9d073ab6a90031cba041755bacb87b1e78edea7d98958df498026fe87f20622e0bf52c810e29919fe8bc73cc76a97af32cd32ca8e2340601c7f6029d44c4008f40fa3985174fe6926b5f54366a4c72893c87d98558f4c92a2ef64db00c1d0fcdc5847779e8576fd5a064e1d687a46e9134ebfcdb0838b7bb8fd59cbb35a8e7192b3b94b271cef44975ea25f50fa9d719030e4e8efe45e24b9bc9c4f6bdab790308da531a7cef3c3c888845732737d1c692e7aaa137fda15741347a2fa8edf0deeb6592e50aaf17699b4500c4c1ab1ee106fe31924199fac7b4116c231ac766",
+    "strategies": [
+      "jwt",
+      "ldap",
+      "local"
+    ],
+    "path": "/authentication",
+    "service": "users",
+    "jwt": {
+      "header": {
+        "typ": "access"
+      },
+      "audience": "http://vite.villaggio.org",
+      "subject": "anonymous",
+      "issuer": "feathers",
+      "algorithm": "HS256",
+      "expiresIn": "10d"
+    },
+    "local": {
+      "entity": "users",
+      "usernameField": "\\username",
+      "passwordField": "\\password"
+    }
+  }
+}

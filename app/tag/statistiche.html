@@ -1,0 +1,143 @@
+﻿<statistiche>
+	<nav class="tb hp">
+		<form onsubmit="{search}">
+			Dal 
+			<input type="date" value="{dal}" max="{al}" onchange="{setDal}" /> 
+			al 
+			<input type="date" value="{al}" min="{dal}" onchange="{setAl}" />
+			<select   onchange="{setCorsobreve}">
+				<option value="">[Tutti]</option>
+				<option each="{m in corsi}" value="{m.corsobreve}" selected="{m.corsobreve==corsobreve}">	
+					{m.corsobreve}: {m.corso}
+				</option>
+			</select>
+			<button type="submit" class=""><i class="fa fa-filter"></i></button>
+			<a onclick="print(this)" class="button bg-olive" title="stampa questa pagina">
+				<i class="fa fa-print"></i>
+			</a>
+			<a class="button bg-orange" if="{data.length}" title="copia" id="copybtn" data-clipboard-target=".pvtTable">
+					<i class="fa fa-copy"></i>
+				</a>			
+		</form>		
+	</nav>
+	<section class="withtb statistiche" >
+		<div id="pivot" show="{data.length}"></div>
+	</section>
+	<script>
+		var me=this
+		me.tbl='orari'		
+		me.data=[]
+		me.corsi=[]
+		me.store=app.f.service(me.tbl)
+		me.corsiStore=app.f.service('corsi')	
+		me.road=app.road
+		me.corsobreve='ELE1'
+		me.dal=moment().startOf('week').format('YYYY-MM-DD')
+		me.al=moment().endOf('week').format('YYYY-MM-DD')
+		me.error=function(msg){
+			app.fn.notify(JSON.stringify(msg))
+		}	
+		me.search=function(e){
+			me.update({data:[]})
+			if (!app.user) return
+			e && e.preventDefault &&  e.preventDefault()
+			var criteria={$limit:9999999,$sort:{giorno:1,tipologiabreve:-1,disciplinabreve:1}}
+			criteria.$and=[ { giorno: { $gte: me.dal } }, { giorno: { $lte: me.al } } ]
+			if (me.corsobreve && me.corsobreve!="null") criteria.corsobreve=me.corsobreve			
+			if (!app.isAdmin && !app.isDirector) criteria.username=app.user
+			//console.log('searching: ',criteria)			
+			me.store.find({query:criteria}).then(me.vm).catch(app.fn.err)
+		}		
+		me.vm=function(rsp){
+			me.raw=rsp
+			rsp.data.map(function(r){
+				r.corso=app.fmt.corso(r.corsobreve)
+				r.disciplina=app.fmt.disciplina(r.disciplinabreve)
+				r.mese = moment(r.giorno).format('MM')+' - '+moment(r.giorno).format('MMM')
+				r.persona=app.fmt.persona(r.username)
+				r.tipologia=app.fmt.tipologia(r.tipologiabreve)
+				r.valore=(r.tipologiabreve==='RE') ? -1:1
+			})
+			me.update({data:rsp.data||[]})
+		}
+		me.vmCorsi=function(rsp){
+			me.update({corsi:rsp && rsp.data||[]})
+		}		
+		me.setDal=function(e){
+			me.dal=moment(e.target.value).format('YYYY-MM-DD')
+			if (me.dal>me.al) me.dal=me.dal
+			me.update({dal:me.dal})
+			me.search()
+		}
+		me.setAl=function(e){
+			me.al=moment(e.target.value).format('YYYY-MM-DD')
+			if (me.al<me.dal) me.al=me.dal
+			me.update({al:me.al})
+			me.search()
+		}
+		me.setCorsobreve=function(e){
+			me.corsobreve=e.target.value
+			me.search()
+		}
+		me.setVar=function(e){
+			//console.info('setVar',e)
+		}
+		me.loadCorsi=function(){
+			me.corsiStore.find({
+				anno:me.anno,
+				query: {$limit:999999,$sort: {corso:1}}
+			}).then(me.vmCorsi).catch(app.fn.err)
+		}		
+		me.init=function(){
+			me.search()
+			window.dbg=me
+			var bd='lib/pivottable/'
+			me.scrpts=[
+				//bd+'jquery.min.js',
+				bd+'jquery-ui.min.js',
+				bd+'pivot.min.js',
+				//bd+'pivot.js',
+				bd+'pivot.it.min.js'
+			]
+			LazyLoad.css(bd+'pivot.min.css')
+			LazyLoad.js(me.scrpts, me.ready)
+		}
+		me.ready=function(){
+			//me.loadCorsi()
+			//$(me.initPivot)
+		}
+		me.initPivot=function(){
+			//console.info('init pivot')
+			var sum = $ && $.pivotUtilities && $.pivotUtilities.aggregatorTemplates.sum
+			if (!sum) return
+        	var numberFormat = $.pivotUtilities.numberFormat
+        	var intFormat = numberFormat({digitsAfterDecimal: 0})
+			var opts={
+				rows:['tipologiabreve'],
+				cols:['disciplinabreve'],
+				aggregator: sum(intFormat)(['valore'])
+			}
+			if (app.isAdmin) opts.rows.push('username')
+			if (!me.corsobreve) opts.rows=['corsobreve','tipologiabreve']
+			if (me.data && me.data.length) $('#pivot').text('').pivotUI(me.data,opts,null,'it')
+			var clipboard = new Clipboard('#copybtn')
+			clipboard.on('success', function(e) {
+				app.fn.notify('Tabella copiata correttamente!')
+				e.clearSelection()
+			})
+			clipboard.on('error', function(e) {
+				app.fn.err('Impossibile copiare la tabella corrente!')
+			})
+		}
+		me.read=me.search
+		me.store.on('saved', me.search)
+		me.store.on('removed', me.search)
+		me.store.on('error', me.error)
+		me.road.on('corsi-loaded',me.vmCorsi)
+		me.on('mount', me.loadCorsi)
+		me.on('before-mount', me.init)
+		me.on('updated', me.initPivot)
+	</script>
+	<style>
+	</style>
+</statistiche>

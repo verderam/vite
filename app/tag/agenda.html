@@ -1,0 +1,386 @@
+﻿<agenda class="flex" data-seq="{opts && opts.seq}">
+	<section class="agenda" id="agenda-{opts.seq}">
+			<div class="hp flex">
+					<form class="srcfrm" onsubmit="{search}">
+						Giorno <input type="date" onblur="{setDal}" value="{dal}" class="wa" />
+						<a onclick="{copy}" class="button bg-orange" if="{data.length}" data-tooltip="copia l'orario di questa settimana per incollarlo in un'altra">
+							<i class="fa fa-copy"></i>
+						</a>
+						<a onclick="{paste}" if="{clipBoard.data && clipBoard.data.length}" class="button" data-tooltip="incolla l'orario copiato">
+							<i class="fa fa-paste"></i>
+						</a>
+						&nbsp;&nbsp;
+						<a onclick="{clear}" if="{data.length}" class="button error close" data-tooltip="svuota completamente la tabella, eliminando tutte le voci">
+							<i class="fa fa-trash-alt" ></i>
+						</a>
+						<a class="button" onclick="{arrange}" data-tooltip="riordina la griglia oraria">
+							<i class="fa fa-sync"></i>
+						</a>
+					</form>	
+					<form class="prifo" id="orari-prn" if="{corsobreve}" action="{app.settings.reportUrl}?report=settimana" target="_blank" method="POST" onsubmit="{prePrint}">
+						<button type="submit" class="h" title="stampa su pdf"></button>
+						<i class="fa fa-file-pdf-o"></i>
+						<input type="hidden" id="orari-frag" name="frag" />
+						<input type="hidden" id="orari-data" name="data" />
+						<input type="hidden" name="prefix" value="{app.settings.prefix}" />
+					</form>
+				</div>		
+		<article class="rel orecnt">
+			<table class="oratbl fw rel">
+				<colgroup>
+					<col style="width:60px" />
+				</colgroup>
+				<thead>
+					<tr>
+						<th>
+							<p class="ac">
+								{app.fmt.shrtDate(dal)}
+							</p>
+						</th>
+						<th ondrop="{del}" class="ac gc" ondragover="{dropping}" each="{c in corsi}">
+							<a href="#" onclick="{chgCorso}">{c.corsobreve}</a>
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr each="{ora in ore}">
+						<th class="ac" ondrop="{del}" ondragover="{dropping}">{ora.dalle}</th>
+						<td each="{c in corsi}" data-corsobreve="{c.corsobreve}" data-dalle="{ora.dalle}" data-ora="{ora.ora}" class="ac" ondragover="{dropping}" data-giorno="{dal}" ondrop="{drop}" onclick="{showMc}" style="cursor:pointer;color:#fff">
+							{ora.dalle}
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			<div class="appointment abs {i.tipologiabreve} tc {i.stato} {i.tipologiabreve==='DO' ||  i.tipologiabreve==='DZ'  || i.tipologiabreve==='CO' ? '':'np'}" each="{i,ix in data}" no-reorder key="{i._id}"  draggable="true" ondragstart="{drag}" data-dalle="{i.dalle}" data-ora="{i.ora}" data-giorno="{i.giorno}" data-corsobreve="{i.corsobreve}">
+					<b class="tdd mat" data-giorno="{i.giorno}" data-ora="{i.ora}" data-dalle="{i.dalle}">
+						{i.tipologiabreve==='DO' ||  i.tipologiabreve==='DZ' || i.tipologiabreve==='DF'   ? app.fmt.disciplina(i.disciplinabreve):app.fmt.tipologia(i.tipologiabreve)}
+					</b>
+					<br />
+					<span class="tdu" data-giorno="{i.giorno}" data-ora="{i.ora}" data-dalle="{i.dalle}">
+						{app.fmt.cono(i.username)}
+					</span>
+					<span class="label np" each="{l in i.etichette}">
+						{l}
+					</span>
+					<a if="{i.alert}" onclick="{loadUser}" data-tooltip="Attribuzione in conflitto!" style="color:red!important">
+						<i class="fa fa-exclamation-triangle"></i>
+					</a>
+			</div>
+		</article>
+		<div class="vs-modal" if="{mc}">
+			<section class="vs-modal-content" style="padding:.5em">
+				<h3>Scegli una cattedra:</h3>
+				<ul>
+					<li each="{c in cattedre}">
+						<a href="#" onclick="{addOra}" class="ullnk">
+							<b class="">{c.disciplinabreve}</b>	{c.tipologiabreve}:	<b>{app.fmt.cono(c.username)}</b> 
+							<span class="oreinfo info-{c.cl}"><i>{c.svolte}/</i>{c.ore}</span>
+						</a>
+					</li>
+				</ul>
+				<p>
+					<a class="button fw" onclick="{hideMc}">Annulla</a>
+				</p>
+			</section>
+		</div>
+	</section>
+	<style>
+		table{table-layout: fixed}
+		table.it,.it td, .it tr, .it th{border:0}
+		tr:nth-child(even) {background:transparent;}
+		th{font-weight:normal;}
+		th,td{border:1px lightgrey dotted;border-collapse:collapse}
+		td p{display:inline-block}
+		tbody td:hover{background:#c0fcae}
+		.abs{position:absolute}
+		.rel{position:relative}
+		.appointment{background:white;padding:.3em;border:1px gray solid}
+		.DO{background:gold;}
+		.CO{background:yellow;}
+		.TU{background:azure;}
+		.dragging{background:lightgreen}
+		th.dragging{background:red;color:white!important}
+		.ullnk:hover{color:red}
+	</style>
+	<script>
+		var me = this
+		me.mc=false
+		me.dal=moment().format('YYYY-MM-DD') //giorno corrente
+		me.corsi=app.stores.corsi.data && app.stores.corsi.data.filter(function(r){return !r.stato}) || []		
+		me.road=app.road
+		me.tot=0
+		me.clip={}		
+		me.isAdmin=app.isAdmin
+		me.isDirector=app.isDirector
+		me.ro=!me.isAdmin
+		me.store=app.f.service('orari')
+		me.cattedreStore=app.f.service('cattedre')
+		me.data=[]
+		me.cattedre=[]
+		me.cattedreFilter=false
+		me.clipBoard=app.clipBoard||[]
+		me.ore=[
+			{ora:1,dalle:'08:00'},
+			{ora:1,dalle:'08:30'},
+			{ora:2,dalle:'09:00'},
+			{ora:2,dalle:'09:30'},
+			{ora:3,dalle:'10:00'},
+			{ora:3,dalle:'10:30'},
+			{ora:4,dalle:'11:00'},
+			{ora:4,dalle:'11:30'},
+			{ora:5,dalle:'12:00'},
+			{ora:5,dalle:'12:30'},
+			{ora:6,dalle:'13:00'},
+			{ora:6,dalle:'13:30'},
+			{ora:7,dalle:'14:00'},
+			{ora:7,dalle:'14:30'},
+			{ora:8,dalle:'15:00'},
+			{ora:8,dalle:'15:30'},
+			{ora:9,dalle:'16:00'},
+			{ora:9,dalle:'16:30'},
+			{ora:10,dalle:'17:00'},
+			{ora:10,dalle:'17:30'},
+			{ora:11,dalle:'18:00'},
+			{ora:11,dalle:'18:30'}
+		]
+		me.loadUser=function(e){
+			if (!(app.isAdmin || app.isDirector)) return
+			var d= e && e.item && e.item.i||{}
+			route('orario/'+d.username+'/'+d.giorno)
+		}
+		me.setDal=function(e){
+			me.dal=moment(e.target.value).format('YYYY-MM-DD')
+			me.search()
+		}
+		me.copy=function(e){
+			me.clipBoard={
+				corsobreve:me.corsobreve,
+				dal:me.dal,
+				data:me.data
+			}
+			me.update({clipBoard:me.clipBoard})
+		}
+		me.showMc=function(e){
+			console.log('showMc...:', e, e.item)
+			var d=e && e.item && e.item.c||{}
+			var mc={
+				corsobreve: d.corsobreve||me.corsobreve,
+				giorno: me.dal,
+				ora: d.ora||e.target.dataset.ora,
+				dalle: d.dalle||e.target.dataset.dalle
+			}
+			me.update({mc:mc,corsobreve:mc.corsobreve})
+			me.getCattedre()
+		}
+		me.hideMc=function(e){
+			e && e.preventDefault && e.preventDefault()
+			me.update({mc:false})
+		}
+		me.paste=function(e){
+			if (!me.isAdmin) return
+			if (me.lock) return
+			me.lock=true
+			var prevDate=moment(me.dal)
+			var newDate=moment(me.clipBoard.dal)
+			me.delta=prevDate.diff(newDate, 'days')
+			me.clipBoard.data.map(function(c){
+				var n=JSON.parse(JSON.stringify(c))
+				delete(n._id)
+				n.giorno=moment(n.giorno).add(me.delta,'days').format('YYYY-MM-DD')
+				me.store.create(n).catch(app.fn.err)
+			})
+			setTimeout(function(){
+				me.update({lock:false})
+				me.check()
+			},200)
+		}		
+		me.clear=function(e){
+			if (!confirm('Eliminare tutte le voci?')) return
+			me.data.map(function(r){
+				me.store.remove(r._id)
+			})
+		}
+		me.del=function(e={}){
+			if(!me.isAdmin) return
+			//console.log('del...:',e)			
+			var r=me.clip
+			var store=(r.anno) ? me.cattedreStore : me.store
+			store.remove(r._id).catch(app.fn.err)
+			$('.dragging').removeClass('dragging')
+		}
+		me.dropping=function(e={}){
+			e.preventDefault && e.preventDefault() //# consente di trascinare un elemento
+			//$('.dragging').html('&nbsp;').removeClass('dragging')
+			//e.target && e.target.classList.add('dragging')
+			//$(e.target).text(e.target.dataset.dalle).addClass('dragging')
+			$('.dragging').removeClass('dragging')
+			$(e.target).addClass('dragging')
+		}
+		me.drag=function(e={}){
+			me.clip=e.item && e.item.i || {}  //# rilascia l'elemento nella posizione desiderata
+			me.copied=e.ctrlKey
+			me.dest=e
+		}
+		me.drop=function(e={}){
+			//console.log('drop... ',e,me.isAdmin)
+			if(!me.isAdmin) return
+			var r={}
+			if (me.copied){
+				r=JSON.parse(JSON.stringify(me.clip))
+				delete(r._id)
+				delete(r.corsobreve)
+				me.copied=false
+			}else{
+				r=me.clip
+			}
+			//$('.dragging').html('&nbsp;').removeClass('dragging')
+			$('.dragging').removeClass('dragging')
+			var n=e.target.dataset
+			//console.log('r...: ',r,'n...: ',n)
+			r.corsobreve=n.corsobreve || me.corsobreve
+			if (!r.corsobreve) return
+			if (!r.username) r.username=me.refs.username.value
+			if (!r.tipologiabreve) r.tipologiabreve=me.refs.tipologiabreve.value
+			if (!r.disciplinabreve) r.disciplinabreve=me.refs.disciplinabreve.value
+			if (r.alert) delete(r.alert)
+			r.giorno=n.giorno
+			r.ora=n.ora
+			r.dalle=n.dalle
+			if (r.anno){
+				delete(r._id)
+				delete(r.anno)
+			}
+			if (r.ore) delete (r.ore)
+			if (!r.giorno) return
+			if (!r._id){
+				me.store.create(r).catch(app.fn.err)
+			}else{
+				me.store.update(r._id,r).catch(app.fn.err)
+				//me.update({data:me.data})
+			}
+			me.clip={}
+		}
+		me.addOra=function(e){
+			console.log('add...: ',e.item,'mc...: ',me.mc)
+			e && e.preventDefault && e.preventDefault()
+			if(!me.isAdmin) return
+			var c=e && e.item && e.item.c||false
+			if (!c) return
+			var r=me.mc
+			if (!r.corsobreve) r.corsobreve=c.corsobreve
+			if (!r.corsobreve) return
+			r.username=c.username
+			r.tipologiabreve=c.tipologiabreve
+			r.disciplinabreve=c.disciplinabreve
+			if (r.alert) delete(r.alert)
+			if (!r.giorno) r.giorno=me.dal
+			if (!r.ora) return
+			console.info('saving....: ',r)
+			me.store.create(r).catch(app.fn.err)
+			me.mc=false
+			me.update({mc:false})
+		}		
+		me.vm=function(rsp){
+			me.raw=rsp
+			me.data=rsp.data || []
+			me.update({data:me.data,tot:me.data.length,dc:true})
+			setTimeout(function(){
+				me.check()
+			},300)
+		}
+		me.vmCattedre=function(rsp){
+			me.update({cattedre:rsp && rsp.data	||[]})
+		}
+		me.check=function(){
+			var alert=false
+			me.data.map(function(d){
+				var criteria={giorno:d.giorno,dalle:d.dalle,username:d.username}
+				me.store.find({query:criteria}).then(function(r){
+					d.alert=r.total-1||false
+					if (d.alert) me.update({data:me.data})
+				})
+			})
+			me.cattedre.map(function(d){
+				d.svolte=0
+				var criteria={corsobreve:d.corsobreve,username:d.username}
+				if (d.tipologiabreve) criteria.tipologiabreve=d.tipologiabreve
+				if (d.disciplinabreve) criteria.disciplinabreve=d.disciplinabreve
+				me.store.find({query:criteria}).then(function(r){
+					if (r.total) d.svolte=r.total
+					me.update({cattedre:me.cattedre})
+				})
+			})
+		}
+		me.search=function(e){
+			e && e.preventDefault && e.preventDefault()
+			var criteria={$limit:9999,$sort:{giorno:1,tipologiabreve:-1,disciplinabreve:1}}
+			criteria.$and=[ { giorno: me.dal } ]
+			//me.getOre()
+			me.store.find({query:criteria}).then(me.vm).catch(app.fn.err)
+			me.getCattedre()
+		}
+		me.getCattedre=function(){
+			var criteria={corsobreve:me.corsobreve,$sort:{disciplinabreve:1,tipologiabreve:-1}}
+			if (me.cattedreFilter) criteria.tipologiabreve={$in:['DO','CO']}
+			me.cattedreStore.find({query:criteria}).then(me.vmCattedre).catch(app.fn.err)
+		}		
+		me.chgCorso=function(e){
+			e && e.preventDefault()
+			var c=e && e.item && e.item.c && e.item.c.corsobreve
+			if (c){ 
+				me.update({corsobreve:c})
+			}
+		}
+		me.arrange=function(e){
+			//TODO: gestire nel ciclo con riotjs evitando jQuery a posteriori, ad es. modificando le altezze
+			//if (!me.dc) return
+			//console.info('arrange...: ',e)
+			var n=[]
+			$('.appointment').each(function(i,o){
+				var dalle=$(o).attr('data-dalle')
+				var corso=$(o).attr('data-corsobreve')
+				var t=$('td[data-dalle="'+dalle+'"]').length? $('td[data-dalle="'+dalle+'"]').position().top : null
+				if (!t) return
+				var l=$('td[data-corsobreve="'+corso+'"]').position().left
+				var i=corso+''+dalle.replace(':','-')
+				//if (n[i]) l+=n[i]*200
+				if (n[i]){
+					var sid='#'+i+n[i]
+					l+=$(sid).width()+15
+					n[i]++
+				}else{
+					n[i]=1
+				}
+				var id=i+n[i]
+				$(o).attr('id',id).css('top',t+5).css('left',l+5)
+			})
+			me.dc=false
+		}
+		me.init=function(){
+			app.indi=me
+			app.road.trigger('load-ore')
+			me.isAdmin=app.isAdmin
+			me.isDirector=app.isDirector
+			me.update({isAdmin:me.isAdmin,isDirector:me.isDirector})
+			me.search()
+		}
+			
+		me.store.on('created',me.search)
+		me.store.on('updated',me.search)
+		me.store.on('removed', me.search)
+		
+		//me.cattedreStore.on('created', me.getCattedre)
+		//me.cattedreStore.on('removed', me.getCattedre)		
+		me.cattedreStore.on('error', app.error)		
+		
+		me.road.on('cattedre-loaded',me.vmCattedre)
+		//me.road.on('ore-loaded',me.vmOre)
+		//me.road.on('corsi-loaded',me.vmCorsi)
+		//me.road.on('rubrica-loaded',me.vmRubrica)
+		//me.road.on('tipologie-loaded',me.vmTipologie)
+		//me.road.on('discipline-loaded',me.vmDiscipline)		
+		me.road.on('log-in', me.init)
+		me.on('before-mount', me.init)
+		me.on('updated', me.arrange)
+	</script>
+</agenda>

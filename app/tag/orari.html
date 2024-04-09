@@ -1,0 +1,58 @@
+﻿<orari>
+	<section class="orari" style="margin-top:4em;background:#fff">
+		<quadro each="{q in quadri}" if="{booking==='quadro'}"></quadro>
+		<agenda each="{q in quadri}" if="{booking==='agenda'}"></agenda>
+		<single each="{q in quadri}" if="{booking==='single'}" seq="{q}"></single>
+		<p class="ar">
+			<!-- Mostra <input type="number" min="1" max="4" value="{quadri}" onchange="{setQuadri}"  style="max-width:4em" /> quadri. -->
+			<select onchange="{setBooking}">
+				<option value=""></option>
+				<option value="quadro">Quadro Settimanale</option>
+				<option value="agenda">Agenda</option>
+				<option value="single">Corso singolo</option>
+			</select>
+			<button onclick="{subQuadri}" hide="{ quadri.length<2 }" class="error">
+				<i class="fa fa-minus"></i>
+				
+			</button>			
+			<button onclick="{addQuadri}" hide="{ quadri.length>5 }" class="bg-olive">
+					<i class="fa fa-plus"></i>
+			</button>
+		</p>
+	</section>
+	<style>
+		select{width:auto}
+	</style>
+	<script>
+		var me=this
+		app.orari=me
+		me.booking=app.settings.booking || 'quadro';
+		me.quadri=[1]
+		me.init=function(){
+			app.pgs.orari=me
+			app.pg=me
+		}
+		me.setQuadri=function(e){
+			var q=e.target.value
+			if (q>4) return 
+			if (q<0) q=0
+			me.update({quadri:q++})
+		}
+		me.setBooking=function(e){
+			var v=e.target.value
+			if (!v) return 
+			me.update({booking:v})
+		}
+		me.addQuadri=function(e){
+			me.quadri[me.quadri.length]=me.quadri.length
+			me.update({quadri:me.quadri})
+		}
+		me.subQuadri=function(e){
+			me.quadri.splice(me.quadri.length-1,1)
+			me.update({quadri:me.quadri})
+		}
+		me.on('before-mount', me.init)
+		app.road.on('settings', me.update({booking:app.settings.booking,quadri:[1]}))
+	</script>
+	<!-- Per la stampa valutare piuttosto di utilizzare html-pdf npm server side: https://www.npmjs.com/package/html-pdf -->
+</orari>

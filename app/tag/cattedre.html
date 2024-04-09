@@ -1,0 +1,309 @@
+﻿<cattedre>
+	<section class="withtb cattedre">
+		<nav class="tb np">
+			<form  onsubmit="{search}">
+				Anno:
+				<select accesskey="m" onchange="{setAnno}" style="width:8em">
+					<option each="{m in anni}" value="{m.anno}" selected="{m.anno==app.anno}">{m.anno}</option>
+				</select>							
+				<span if="{!byCorso}">
+					<a onclick="{setBy}" href="javascript:" title="clicca qui per visualizzare e modificare le cattedre per corso">Docente:</a>
+					<select accesskey="d" onchange="{setDocente}" style="width:14em" autofocus required>
+						<option></option>
+						<option each="{m in docenti}" value="{m.username}">{m.cognome} {m.nome}</option>
+					</select>
+				</span>
+				<span if="{byCorso}" title="clicca qui per visualizzare e modificare le cattedre per docente">
+					<a onclick="{setBy}" href="javascript:">Corso:</a>
+					<select accesskey="c" style="width:14em" onchange="{setCorso}"  autofocus required>
+						<option></option>
+						<option each="{m in corsi}" value="{m.corsobreve}" key="{m._id}">	
+							{m.corsobreve}: {m.corso}
+						</option>
+					</select>
+				</span>
+				<button type="submit" class=""><i class="fa fa-filter"></i></button>
+			</form>		
+		</nav>
+		<article class="paper" if="{docente||corso}">
+			<h2 class="">
+				{(byCorso) ? 'Corso: '+app.fmt.corso(corso) : 'Docente: '+app.fmt.persona(docente)}
+			</h2>
+			<table class="bordered striped tf">
+				<colgroup>
+					<col style="width:1.8em;text-align:center" />
+					<col  style="width:20em" span="3" />
+					<col style="width:5em" />
+					<col style="width:1.8em;text-align:center" />
+				</colgroup>
+				<thead>
+					<tr>
+						<th class="hp">&nbsp;</th>
+						<th>Tipologia</th>						
+						<th>{(corso) ? 'Docente' : 'Corso'}</th>
+						<th>Disciplina</th>						
+						<th>Ore</th>
+						<th class="hp">
+							<a href="javascript:" onclick="print(this)">
+								<i class="fa fa-print"></i>
+							</a>
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr each="{r,i in cattedre}" ondblclick="{edit}" class="trlnk" title="doppio clic per modificare">
+						<td class="hp">
+							<a onclick="{edit}" href="javascript:" hide="{r==crnt}">
+								<i class="fa fa-pencil-alt"></i>
+							</a>
+							<a href="javascript:" onclick="{cancel}" show="{r==crnt}">
+									<i class="fa fa-ban"></i>
+							</a>							
+						</td>
+						<td>
+							<span if="{r!=crnt}">{app.fmt.tipologia(r.tipologiabreve)}</span>
+							<select if="{r==crnt}" ref="tipologiabreve" >
+								<option each="{m in tipologie}" value="{m.tipologiabreve}" selected="{m.tipologiabreve==r.tipologiabreve}">
+									{m.tipologiabreve}: {m.tipologia}
+								</option>
+							</select>
+						</td>						
+						<td if="{!corso}">
+							<span if="{r!=crnt}">{r.corsobreve}</span>
+							<select if="{r==crnt}" ref="corsobreve" >
+								<option></option>
+								<option each="{m in corsi}" value="{m.corsobreve}" selected="{m.corsobreve==r.corsobreve}">	
+									{m.corsobreve}: {m.corso}
+								</option>
+							</select>
+						</td>
+						<td if="{corso}">
+							<span if="{r!=crnt}">{app.fmt.persona(r.username)}</span>
+							<select if="{r==crnt}" ref="username" >
+								<option></option>
+								<option each="{m in docenti}" value="{m.username}" selected="{m.username==r.username}">	
+									{app.fmt.cono(m.username)}
+								</option>
+							</select>							
+						</td>						
+						<td>
+							<span if="{r!=crnt}">{app.fmt.disciplina(r.disciplinabreve)}</span>
+							<select if="{r==crnt}" ref="disciplinabreve" >
+								<option each="{m in discipline}" value="{m.disciplinabreve}" selected="{m.disciplinabreve==r.disciplinabreve}">
+									{m.disciplinabreve}: {m.disciplina}
+								</option>
+							</select>							
+						</td>
+						<td class="ar">
+							<span if="{r!=crnt}" style="margin-right:1.27em">{r.ore}</span>
+							<input if="{r==crnt}" ref="ore" type="number" min="1" value="{r.ore}" class="ar" />
+						</td>
+						<td class="ac hp">
+							<!-- <input type="checkbox" class="cb" onclick="{select}" if="{r!=crnt}" checked="{r._sel}" /> -->		
+							<a href="javascript:" class="error" onclick="{remove}" if="{r!=crnt}" tabindex="-1">
+								<i class="fa fa-trash-alt"></i>
+							</a>					
+							<a href="javascript:" onclick="{save}" if="{r==crnt}">
+								<i class="fa fa-save"></i>
+							</a>
+						</td>
+					</tr>			
+					<tr hide="{cattedre.length}">
+						<td colspan="6" class="ac">
+							Nessuna attività prevista per <b>{docente}</b>. 
+							<a href="javascript:" onclick="{add}">Aggiungine una!</a>
+						</td>
+					</tr>
+				</tbody>
+				<tfoot show="{cattedre.length}">
+					<tr >
+						<th class="hp">
+							<a href="javascript:" onclick="{add}" title="aggiungi una nuova attività [ALT+N]">
+								<i class="fa fa-file-o"></i>
+							</a>
+						</th>
+						<th colspan="3">
+							Totale <!-- <small>(di cui docenza: {totDocenza} - codocenza: {totCodocenza})</small> -->
+						</th>
+						<th class="ar">
+							<span style="margin-right:1.27em">
+								{tot}
+							</span>
+						</th>
+						<th class="hp">
+							&nbsp;
+						</th>
+					</tr>
+					<tr each="{v,k in tots}">
+						<td class="hp">&nbsp;</td>
+						<td colspan="3">Di cui {app.fmt.tipologia(k)}</td>
+						<td class="ar"><span style="margin-right:1.27em">{app.fmt.num(v)}</span></td>
+						<td class="hp">&nbsp;</td>
+					</tr>
+				</tfoot>				
+			</table>
+			<p class="hp">
+				<button class="success" onclick="{add}" accesskey="n" title="aggiungi una nuova attività [ALT+N]">
+					<i class="fa fa-file-o"></i> 
+					Nuova
+				</button>
+			</p>
+		</article>
+	</section>
+	<style>
+		.tf option{margin:0 .2em 0 .2em}
+	</style>	
+	<script>
+		var me=this
+		me.road=app.road
+		me.byCorso=false
+		me.anni=app.anni||[]
+		me.docenti=app.stores.rubrica.data ||[]
+		me.corsi=app.stores.corsi.data ||[]
+		me.discipline=app.stores.discipline.data ||[]
+		me.tipologie=app.stores.tipologie.data	||[]
+		me.anno=app.anno
+		me.docente=null
+		me.cattedre=[]
+		me.store=app.f.service('cattedre')
+		me.setBy=function(){
+			me.update({docente:null,corso:null,byCorso:!me.byCorso})
+		}
+		me.setAnno=function(c){
+			me.anno=c.target.value
+			me.search()
+		}
+		me.setDocente=function(c){
+			me.update({corso:false,docente:c.target.value})
+			me.search()
+		}
+		me.setCorso=function(c){
+			me.update({docente:false,corso:c.target.value})
+			me.search()
+		}		
+		me.search=function(){
+			var cri={$limit:999,$sort:{tipologiabreve:-1,username:1},anno:me.anno}
+			if (me.corso) cri.corsobreve=me.corso
+			if (me.docente) cri.username=me.docente
+			var ret= me.docente || me.corso		
+			return  (ret) ? me.store.find({query:cri}).then(me.vm).catch(app.fn.err) : me.vm([])
+		}
+		me.read=function(){
+			me.search()
+		}		
+		me.vm=function(rsp){
+			me.tot=0				
+			me.tots={}
+			rsp.data && rsp.data.map(function(d,i){
+				var ore=parseFloat(d.ore)||0
+				me.tot+=ore
+				if (!me.tots[d.tipologiabreve]) me.tots[d.tipologiabreve]=0
+				me.tots[d.tipologiabreve]+=ore
+			})
+			me.update({
+				tot:me.tot,
+				tots:me.tots,
+				cattedre:rsp && rsp.data ||[]
+			})
+		}
+		me.vmRubrica=function(rsp){
+			me.update({docenti:rsp && rsp.data	||[]})
+		}
+		me.vmCorsi=function(rsp){
+			me.update({corsi:rsp && rsp.data ||[]})
+		}
+		me.vmDiscipline=function(rsp){
+			me.update({discipline:rsp && rsp.data	||[]})
+		}
+		me.vmTipologie=function(rsp){
+			me.update({tipologie:rsp && rsp.data||[]})
+		}		
+		me.add=function(){
+			me.cattedre.push({username:me.docente,anno:me.anno,corsobreve:me.corso,tipologiabreve:'DO'})
+			me.update({cattedre:me.cattedre,crnt:me.cattedre[me.cattedre.length-1]})
+		}
+		me.edit=function(e){
+			me.update({crnt:e.item.r})
+		}
+		me.save=function(e){
+			Object.keys(me.refs).map(function(k){
+				me.crnt[k]=me.refs[k].value
+			})		
+			if (me.corso)
+			if (!me.crnt.corsobreve){
+				app.fn.notify('Selezionare il corso assegnato')
+				document.querySelector('[ref="corsobreve"]').focus()
+				return
+			}
+			if (!me.crnt.username){
+				app.fn.notify('Selezionare un docente')
+				document.querySelector('[ref="username"]').focus()
+				return
+			}			
+			if (!me.crnt.ore){
+				app.fn.notify('Immettere il numero di ore assegnate')
+				document.querySelector('[ref="ore"]').focus()
+				return
+			}
+			if (me.crnt._id){
+				me.store.update(me.crnt._id,me.crnt).catch(app.fn.err)
+			}else{
+				me.store.create(me.crnt).catch(app.fn.err)
+			}
+			//me.update({crnt:false})
+			//me.read()
+			//me.vm(me.cattedre)
+		}
+		me.remove=function(e){
+			var r=e.item.r
+			if (!confirm('Vuoi davvero eliminare la cattedra # '+r._id+'?')) return
+			me.store.remove(r._id).catch(app.fn.err)
+		}
+		me.cancel=function(e){
+			var u=me.cattedre[me.cattedre.length-1]
+			if (!u._id){
+				me.cattedre.splice(me.cattedre.length-1,1)
+				me.update({cattedre:me.cattedre})
+			}
+			me.update({crnt:false})
+		}
+		me.selectAll=function(e){
+			var s=(e.target.checked)? true:false
+			me.cattedre.map(function(c){
+				c._sel=s
+			})
+			me.vm(me.cattedre)
+		}
+		me.select=function(e){
+			e.item.r._sel=e.target.checked
+		}
+		me.init=function(){
+			me.read()
+			app.pgs.cattedre=me
+		}
+		me.alert=function(msg){
+			app.fn.notify(JSON.stringify(msg.errors))
+		}
+		me.saved=function(data){
+			//console.log('saved',data,me.crnt)
+			me.update({crnt:false})
+		}			
+		me.store.on('created', me.read)	
+		me.store.on('updated', me.read)	
+		me.store.on('removed', me.read)
+		
+		me.road.on('tipologie-loaded',me.vmOre)
+		me.road.on('corsi-loaded',me.vmCorsi)
+		me.road.on('rubrica-loaded',me.vmRubrica)
+		me.road.on('tipologie-loaded',me.vmTipologie)
+		me.road.on('discipline-loaded',me.vmDiscipline)		
+		
+		me.on('before-mount',me.init)		
+		me.on('updated',function(){
+			//var ctrl=document.querySelector('[ref="tipologiabreve"]')
+			//ctrl && ctrl.focus && ctrl.focus()
+			$('[ref="tipologiabreve"]').focus()
+
+		})		
+	</script>
+</cattedre>

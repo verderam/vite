@@ -1,0 +1,216 @@
+﻿<ore>
+	<section class="data paper">
+		<h4>{app.fmt.title(tbl)}</h4>
+		<table class="bordered striped tf">
+			<colgroup>
+				<col style="width:1.8em;text-align:center" />
+				<col style="width:4em;text-align:center" />
+				<col style="width:4em;text-align:center" />
+				<col style="width:4em;text-align:center" />
+				<col style="width:3em;text-align:right" />
+				<col style="width:1.8em;text-align:center" />
+			</colgroup>
+			<thead>
+				<tr>
+					<th>
+						<a onclick="{add}" href="javascript:" title="inserisci una nuova ora">
+							<i class="fa fa-file-o"></i>
+						</a>
+					</th>
+					<th>Ora</th>
+					<th>Dalle</th>
+					<th>Alle</th>
+					<th>Ordine</th>
+					<th>
+						<a onclick="{read}" href="javascript:" title="aggiorna">
+							<i class="fa fa-refresh"></i>
+						</a>
+					</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr each="{r,i in data}" ondblclick="{edit}">
+					<td>
+						<a onclick="{edit}" href="javascript:" hide="{r==crnt}">
+							<i class="fa fa-pencil-alt"></i>
+						</a>
+						<a href="javascript:" onclick="{cancel}" show="{r==crnt}">
+								<i class="fa fa-ban"></i>
+						</a>							
+					</td>
+					<td>
+						<span if="{r!=crnt}">{r.ora}</span>
+						<input if="{r==crnt}" ref="ora" type="number" min="1" max="99" value="{r.ora}" class="ar" />						
+					</td>
+					<td>
+						<span if="{r!=crnt}">{r.dalle}</span>
+						<input if="{r==crnt}" ref="dalle" value="{r.dalle}" class="ac" />							
+					</td>
+					<td>
+						<span if="{r!=crnt}">{r.alle}</span>
+						<input if="{r==crnt}" ref="alle" value="{r.alle}" class="ac" />							
+					</td>
+					<td>
+						<span if="{r!=crnt}">{r.ordine}</span>
+						<input if="{r==crnt}" ref="ordine" value="{r.ordine}" type="number" class="ac" />							
+					</td>
+					<td class="ac">
+						<!-- <input type="checkbox" class="cb" onclick="{select}" if="{r!=crnt}" checked="{r._sel}" /> -->		
+						<a href="javascript:" class="error" onclick="{remove}" if="{r!=crnt}" tabindex="-1">
+							<i class="fa fa-trash-alt"></i>
+						</a>					
+						<a href="javascript:" onclick="{save}" if="{r==crnt}">
+							<i class="fa fa-save"></i>
+						</a>
+					</td>
+				</tr>
+			</tbody>				
+		</table>
+		<p>
+			<button class="success" onclick="{add}" accesskey="n" title="aggiungi una nuova ora [ALT+N]">
+				<i class="fa fa-file-o"></i> 
+				Nuova
+			</button>
+		</p>
+	</section>
+	<style>
+	</style>	
+	<script>
+		//TODO cfr, per fissare le header: https://jsfiddle.net/dPixie/byB9d/3/
+		var me=this
+		me.tbl='ore'
+		me.data=[]
+		me.store=app.f.service(me.tbl)
+		me.store.on('created', function(err,rsp){
+			me.read()
+		})
+		me.vm=function(rsp){
+			me.raw=rsp
+			me.update({data:rsp && rsp.data||[]})
+		}
+		me.add=function(){
+			me.data.push({anno:me.anno})
+			me.update({data:me.data,crnt:me.data[me.data.length-1]})
+		}
+		me.edit=function(e){
+			me.update({crnt:e.item.r})
+		}
+		me.cancel=function(e){
+			me.update({crnt:false})
+		}		
+		me.remove=function(e){
+			var r=e.item.r
+			if (!confirm('Vuoi davvero eliminare l\'ora # '+r._id+'?')) return
+			if (!r._id){
+				me.data.length=me.data.length-1
+				me.update({data:me.data})
+			}else{
+				me.store.remove(r._id).catch(app.fn.err) //.then(me.read).catch(app.fn.err)
+			}
+		}		
+		me.read=function(){me.store.find({query: {$limit: 99,$sort: {ordine:1}}}).then(me.vm).catch(app.fn.err)}
+		me.save=function(e){
+			Object.keys(me.refs).map(function(k){
+				me.crnt[k]=me.refs[k].value
+			})			
+			if (!me.crnt.dalle){
+				app.fn.notify('Impostare l\'ora di inizio')
+				document.querySelector('[ref="dalle"]').focus()
+				return
+			}
+			if (!me.crnt.dalle){
+				app.fn.notify('Impostare l\'ora di fine')
+				document.querySelector('[ref="alle"]').focus()
+				return
+			}
+			if (me.crnt._id){
+				me.store.update(me.crnt._id,me.crnt).catch(app.fn.err)
+			}else{
+				me.store.create(me.crnt).catch(app.fn.err)
+			}
+		}		
+		me.saved=function(data){
+			me.update({crnt:false})
+		}		
+		me.init=function(){
+			if (!me.data.length) me.read()
+		}
+		me.on('before-mount', me.init)		
+		me.store.on('removed',me.read)
+		me.store.on('updated',me.read)
+		me.store.on('created',me.read)
+		me.on('updated',function(){
+			var ctrl=document.querySelector('[ref="ora"]')
+			ctrl && ctrl.focus && ctrl.focus()
+		})		
+		//me.store.on('created',me.read)
+		
+/*		
+		me.store=app.stores.data
+		me.data=me.store.data
+		me.read=function(){
+			me.store.trigger('get')
+		}		
+		me.vm=function(data){
+			me.update({data:data||[]})
+		}
+		me.add=function(){
+			me.data.push({username:me.docente,anno:me.anno})
+			me.update({data:me.data,crnt:me.data[me.data.length-1]})
+		}
+		me.edit=function(e){
+			me.update({crnt:e.item.r})
+		}
+		me.save=function(e){
+			Object.keys(me.refs).map(function(k){
+				me.crnt[k]=me.refs[k].value
+			})			
+			if (!me.crnt.dalle){
+				app.fn.notify('Impostare l\'ora di inizio')
+				document.querySelector('[ref="dalle"]').focus()
+				return
+			}
+			if (!me.crnt.dalle){
+				app.fn.notify('Impostare l\'ora di fine')
+				document.querySelector('[ref="alle"]').focus()
+				return
+			}
+			me.store.trigger('set',me.crnt)
+			me.read()
+		}
+		me.remove=function(e){
+			var r=e.item.r
+			if (!confirm('Vuoi davvero eliminare l\'ora # '+r.id+'?')) return
+			me.store.trigger('del',r.id)
+		}
+		me.cancel=function(e){
+			me.update({crnt:false})
+		}
+		me.selectAll=function(e){
+			var s=(e.target.checked)? true:false
+			me.data.map(function(c){
+				c._sel=s
+			})
+			me.vm(me.data)
+		}
+		me.select=function(e){
+			e.item.r._sel=e.target.checked
+		}
+		me.init=function(){
+			app.pgs.data=me
+		}
+		me.alert=function(msg){
+			app.fn.notify(JSON.stringify(msg.errors))
+		}
+		me.saved=function(data){
+			me.update({crnt:false})
+		}
+		me.store.on('loaded', me.vm)			
+		me.store.on('saved', me.saved)	
+		me.store.on('error', me.alert)	
+		me.store.on('removed', me.read)
+		me.on('befdata-mount',me.init)		
+	
+*/		
+	</script>
+</ore>

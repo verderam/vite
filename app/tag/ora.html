@@ -1,0 +1,164 @@
+﻿<ora>
+    <label for="modalora" class="h">...</label>
+    <div class="ora modal">
+        <input id="modalora" type="checkbox" checked="{d._id}" />
+        <label for="modalora" class="overlay"></label>
+        <article>
+            <form onsubmit="{save}">
+                <header>
+                    <h3>
+                            Modifica ora <span class="blue">{d.ora}</span> 
+                            del <span class="blue">{moment(d.giorno).format('D/M/Y')}</span> ⏱
+                    </h3>
+                    <p class="locktxt" if="{lock}">N.B.: in caso di attività antecedenti il mese corrente è possibile modificare solo la descrizione.</p>
+                </header>
+                <section class="content">
+                    <select ref="tipologiabreve" disabled="{lock}">
+                        <option value="">[tipologia]</option>
+                        <option each="{m in tipologie}" key="{m._id}" value="{m.tipologiabreve}" selected="{m.tipologiabreve==d.tipologiabreve}">
+                            {m.tipologiabreve}: {m.tipologia}
+                        </option>
+                    </select>
+                    <p class="lblzone" show="{d.etichette && d.etichette.length}" class="stack">
+                        <span class="label" each="{l,lix in d.etichette}" onclick="{delLabel}">
+                            {l}
+                        </span>
+                        <small style="font-weight:normal">
+                            <i class="fa fa-lightbulb"></i>&nbsp;
+                            Fare clic su un'etichetta per eliminarla
+                        </small>
+                    </p>
+                    <select onchange="{setLabel}" class="stack"  disabled="{lock}">
+                        <option value="" selected="{!showLabel}">[etichetta]</option>
+                        <option each="{m in labels}" key="{m._id}" value="{m.labelbreve}">
+                            {m.labelbreve}: {m.label}
+                        </option>
+                    </select>
+                    <select ref="corsobreve" class="stack"  disabled="{lock}">
+                        <option value="">[corso]</option>
+                        <option each="{m in corsi}" key="{m._id}" value="{m.corsobreve}" selected="{m.corsobreve==d.corsobreve}">
+                            {m.corsobreve}: {m.corso}
+                        </option>
+                    </select>
+                    <select ref="disciplinabreve" class="stack"  disabled="{lock}">
+                        <option value="">[disciplina]</option>
+                        <option each="{m in discipline}" key="{m._id}" value="{m.disciplinabreve}" selected="{m.disciplinabreve==d.disciplinabreve}">
+                            {m.disciplinabreve}: {m.disciplina}
+                        </option>
+                    </select>
+                    <textarea class="stack {b: lock}" ref="descrizione" placeholder="Inserire una descrizione libera dell'attività svolta oppure sceglierne una dall'elenco sottostante (facoltativo)">{d.descrizione}</textarea>
+                    <select onchange="{setDescrizione}" class="stack   {b: lock}">
+                        <option value=""></option>
+                        <option each="{m in descrizioni}" value="{m.descrizione}">
+                            {m.descrizione}
+                        </option>
+                    </select>
+                </section>
+                <footer>
+                    <button type="submit" class="success">
+                        <i class="fa fa-save"></i> Salva
+                    </button>
+                    <label for="modalora" class="button" onclick="{end}">
+                        <i class="fa fa-times"></i>&nbsp;
+                        Chiudi
+                    </label>
+                    <a class="button dangerous" onclick="{del}" if="{!lock}">
+                        <i class="fa fa-trash-alt"></i>&nbsp;
+                        Elimina
+                    </a>
+                </footer>
+            </form>
+        </article>
+    </div>
+    <style>
+        label.stack {
+            font-weight: normal;
+            font-size: small
+        }
+        .locktxt{
+            color:orangered;padding-top:1em
+        }
+    </style>
+    <script>
+        var me = this
+        me.road = app.road
+        me.d = me.opts.cr || {}
+        me.store = app.f.service('orari')
+        me.lbls = me.d.etichette || []
+        me.labels = app.stores.labels.data || []
+        me.corsi = app.stores.corsi.data || []
+        me.descrizioni = app.stores.descrizioni.data || []
+        me.tipologie = app.stores.tipologie.data || []
+        me.discipline = app.stores.discipline.data || []
+        me.save = function (e) {
+            e && e.preventDefault && e.preventDefault()
+            var d = me.d
+            if (me.refs.corsobreve.value) {
+                delete (d.nocorso)
+                d.corsobreve = me.refs.corsobreve.value
+            } else {
+                d.nocorso = true
+                delete (d.corsobreve)
+            }
+            d.disciplinabreve = me.refs.disciplinabreve.value
+            if (me.refs.tipologiabreve) d.tipologiabreve = me.refs.tipologiabreve.value
+            d.descrizione = me.refs.descrizione.value
+            //console.info('e: ',e,d)
+            me.store.update(d._id, d).catch(app.fn.err)
+            me.close()
+        }
+        me.vmDescrizioni = function (rsp) {
+            me.update({ descrizioni: rsp && rsp.data || [] })
+        }
+        me.setDescrizione=function(e){
+            e && e.preventDefault()
+            if (e && e.target){
+                me.d.descrizione = e.target.value
+                me.update({d:me.d})
+                e.target.value=null
+            } 
+        }
+        me.init = function (e) {
+            me.lock=(app.isAdmin) ? false : me.d.giorno<app.editLimit
+        }
+        me.setTipo = function (e) {
+            //# verifico se la tipologia ammette un'etichetta oppure no
+            var t = me.refs.tipologiabreve.value
+            var flt = function (r) { return r.tipologiabreve == t }
+            var tb = me.tipologie.filter(flt)
+            if (!tb.length) return
+            me.update({
+                showLabel: tb[0].label || false,
+                showCorso: tb[0].corso || false
+            })
+        }
+        me.setLabel = function (e) {
+            var v = e.target.value
+            if (!v) return
+            if (!me.d.etichette) me.d.etichette = []
+            if (me.d.etichette.indexOf(v) >= 0) return
+            me.d.etichette.push(v)
+            me.update({ d: me.d })
+        }
+        me.delLabel = function (e) {
+            me.d.etichette.splice(e.item.l, 1)
+            me.update({ d: me.d })
+        }
+        me.del = function (e) {
+            var d = me.d
+            if (!d._id) return
+            if (!confirm('Eliminare questa voce? (' + JSON.stringify(d) + ')')) return
+            me.store.remove(d._id).then(me.close()).catch(app.fn.err)
+        }
+        me.end = function (e) {
+            me.close()
+        }
+        me.close = function () {
+            if (modalora) modalora.checked = false
+            app.road.trigger('ora-close')
+            riot.update()
+        }
+        me.road.on('descrizioni-loaded', me.vmDescrizioni)
+        me.on('before-mount', me.init)
+    </script>
+</ora>
