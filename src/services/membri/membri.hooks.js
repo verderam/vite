@@ -2,7 +2,7 @@ const { authenticate } = require('feathers-authentication').hooks;
 
 module.exports = {
     before: {
-        all: [authenticate('config.strategies')],
+        all: [authenticate(config.strategies)],
         find: [],
         get: [],
         create: [],

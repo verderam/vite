@@ -11,7 +11,7 @@ const normalize=function(context){
 
 module.exports = {
   before: {
-    all: [authenticate('config.strategies')],
+    all: [authenticate('jwt')],
     find: [],
     get: [],
     create: [],

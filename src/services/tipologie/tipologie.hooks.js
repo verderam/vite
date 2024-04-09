@@ -13,7 +13,7 @@ const preDel=function(context){
 
 module.exports = {
   before: {
-    all: [authenticate('config.strategies')],
+    all: [authenticate(config.strategies)],
     find: [],
     get: [],
     create: [normalize],
