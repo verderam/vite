@@ -6,7 +6,7 @@ const validate = function(hook){
 
 module.exports = {
   before: {
-    all: [ authenticate('jwt') ],
+    all: [ authenticate('config.strategies') ],
     find: [],
     get: [],
     create: [],
