@@ -26,7 +26,7 @@ module.exports = function () {
   app.service('authentication').hooks({
     before: {
       create: [
-        authentication.hooks.authenticate('jwt')
+        authentication.hooks.authenticate(config.strategies)
       ],
       remove: [
         authentication.hooks.authenticate('jwt')
@@ -37,7 +37,7 @@ module.exports = function () {
         context => {
           //console.log('context...:', context.data)
           app.set('username',context.data.username && context.data.username.toLowerCase())
-          //console.log(app.get('username'),' ha effettuato il login.')
+          console.log(app.get('username'),' ha effettuato il login.')
         }
       ]
     }
