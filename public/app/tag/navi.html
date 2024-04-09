@@ -1,0 +1,62 @@
+<navi>
+	<nav class="topnav np">
+		<a class="brand" href="#/home">
+			<img class="logo" src="img/logo.png" /> <b>{app.settings.name}</b> <small class="blue" show="{app.settings.ver}">v. { app.settings.ver }</small>
+		</a>
+		<span class="notify" show="{msg}">
+			{msg}
+		</span>
+		<input id="bmenub" type="checkbox" class="show">
+		<label for="bmenub" class="burger toggle pseudo button">&#8801;</label>		
+		<div class="menu">
+			<a href="#{ url }" each="{ links }" class="{pseudo: parent.selectedId !== url} button" title="{ name }" accesskey="{accessKey}">
+				<i class="fa fa-{ ico }"></i>
+				{name}
+			</a>
+			<span>
+				<i class="fa fa-user"></i> {user}
+			</span>
+			<a  href="javascript:" onclick="{logout}" class="button pseudo" title="logout">
+				<i class="fa fa-sign-out-alt"></i>
+			</a>			
+		</div>
+	</nav>
+	<script>
+		var me = this
+		me.road=app.road
+		me.links = app.links
+		me.user=app.f.get('user')
+		me.logged=function(){
+			//console.info('logged in!',app.links)
+			me.update({links:app.links})
+		}
+		me.logout=function(){
+			localStorage.clear()
+			app.f.logout().then(function(rsp){
+				//console.info('Logout',rsp && rsp.data)
+				app.f.set('user',undefined)
+				me.update({links:[]})
+				app.fn.goTo('login')
+			}).catch(function(e){
+				me.update({error:JSON.stringify(e)})
+				console.error(e)
+			})
+		}		
+		var r = route.create()
+		r(highlightCurrent)
+
+		function highlightCurrent(id) {
+		  var nv=document.querySelectorAll('.selected')
+		  for (var i=0;i<nv.length;i++){nv[i].className=""}
+		  me.selectedId = id
+		  me.user=app.f.get('user')
+		  me.update()
+		}
+		me.notify=function(msg){
+			me.update({msg:msg})
+			setTimeout(function(){ me.update({msg:null}) }, 2500)
+		}
+		me.road.on('notify',me.notify)
+		me.road.on('log-in',me.logged)
+	</script>
+</navi>

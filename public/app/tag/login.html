@@ -1,0 +1,91 @@
+﻿<login>
+	<div class="ac withtb" style="justify-content:center">
+		<h1>
+			<i class="fa fa-traffic-light"></i>
+			{app.settings.name}
+			<br />
+			<small class="" style="font-size:small">versione {app.settings.ver}
+				<span style="color:#0074d9">"{app.settings.nick}"</span> 
+				<span style="color:red">&beta;eta</span>
+			<br />
+				<a onclick="{logout}" class="button pseudo" if="{user.id}" >
+					<i class="fa fa-logout"></i>
+					Esci [{user.username}]
+				</a>				
+			</small>			
+		</h1>
+		<section class="content">
+			<form onsubmit="{login}" style="max-width:300px;margin:0 auto">
+				<input ref="username" class="stack" placeholder="username" oninvalid="this.setCustomValidity('Inserire il nome utente')" oninput="setCustomValidity('')"  autofocus required />
+				<input ref="password" type="password" class="stack"  placeholder="password" title="Inserire la password" required />
+				<select ref="strategy">
+					<option value="local">Database locale</option>				
+					<option value="ldap" selected>{app.settings.domain||'Dominio'}</option>
+				</select>
+				<button type="submit" class="full stack ac" style="padding:.5em">
+					<i class="fa fa-key"></i>
+					Accedi
+				</button>
+				<p show="{error}" class="label error ac" style="font-size:100%;margin-top:2em">
+					Errore di autenticazione:<br />
+					{error.message}
+				</p>
+				<article class="card" style="margin-top:1em">
+					<p class="ac">
+						<i class="fa fa-lightbulb"></i> Browser supportati: la più recente release disponibile di 
+							<a href="https://www.chromium.org" target="_blank">Chromium browser</a>, 
+							<a href="http://www.opera.com/it" target="_blank">Opera</a>, 
+							o <a href="https://enterprise.google.com/chrome/chrome-browser/" target="_blank">Google Chrome</a>.
+					</p>
+				</article>
+			</form>
+		</section>
+	</div>
+	<style>
+	</style>	
+	<script>
+		var me=this
+		me.error=false
+		me.user=false
+		me.login=function(e){
+			e && e.preventDefault && e.preventDefault()
+			var u=this.refs.username.value.toLowerCase()
+			var p=this.refs.password.value
+			var s=this.refs.strategy.value|| 'ldap'
+			var authData={
+				username:u,
+				password:p,
+				strategy:s
+			}
+			app.f.authenticate(authData).then(function(rsp){
+				app.initLists()
+				app.user=u.toLowerCase()
+				app.f.set('user', u)
+				app.fn.goTo('home')
+			}).then(function(payload) {
+				var pay= payload && app.f.service('users').get(payload.userId)
+				app.road.trigger('loggedIn',payload||app.user)
+				return payload
+			}).then(function(user){
+				if (user) app.f.set('user', user)
+			}).catch(function(e){
+				me.update({error:e})
+				app.f.set('user', undefined)
+			})			
+		}
+		me.logout=function(){
+			app.user=null
+			localStorage.clear()
+			app.f.logout().then(function(rsp){
+				app.fn.goTo('login')
+			}).catch(function(e){
+				me.update({error:e && e.message})
+			})
+		}
+		var r = route.create()
+		r('*', function() {
+			me.refs.username && me.refs.username.focus()
+		})		
+		app.pgs.login=me
+	</script>
+</login>

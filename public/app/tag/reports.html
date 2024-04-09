@@ -1,0 +1,405 @@
+﻿<reports>
+	<section class="withtb">
+		<article class="card" style="max-width:600px;margin:1em auto;padding:1em;background:lightgreen">
+			<header>
+				<h3>
+					<i class="fa fa-file-excel"></i> Reports
+				</h3>
+				<p style="font-weight: normal">
+					<i class="fa fa-lightbulb"></i> Scegliere un report ed impostare i parametri di ricerca per visualizzarlo o scaricarlo sul pc. 
+				</p>
+			</header>
+			<section class="content">
+				<form onsubmit="{search}" name="srcfrm">
+					<label class="stack">Report</label>
+					<select ref="report" required onchange="{setReport}">
+						<option></option>
+						<option each="{m in reports}" key="{m.file}" no-reorder value="{m.file}">	
+							{m.name}
+						</option>
+					</select>
+					<label class="stack"  if="{showDal}">Dal</label> 
+					<input ref="dal" type="date" value="{dal}" max="{maxDal}" required  if="{showDal}" onchange="{setGiorni}" />
+					<label class="stack"  if="{showDal}">Al</label>  
+					<input ref="al" type="date" value="{al}" max="{maxDal}" required  if="{showDal}"  onchange="{setGiorni}" />
+					<span if="{app.isAdmin && showPersona}">
+						<label class="stack">Persona</label> 
+						<select ref="username" required>
+							<option value=""></option>
+							<option each="{m in rubrica}" key="{m._id}" no-reorder value="{m.username}">	
+								{m.username}: {m.cognome} {m.nome}
+							</option>
+						</select>
+					</span>
+					<label class="stack"  if="{showCorso}">Corso <small>(Premere CTRL per selezionare più voci)</small></label> 
+
+					<select multiple ref="corsi" style="min-height: 150px" if="{showCorso}">
+						<option value=""></option>
+						<option each="{m in corsi}" key="{m._id}" no-reorder value="{m.corsobreve}">	
+							{m.corsobreve}: {m.corso}
+						</option>
+					</select>
+					
+					<button class="stack tooltip-top"  if="{report}" type="submit" data-tooltip="scarica il report selezionato" style="margin-top:.5em;padding:.7em" target="_blank">
+						<i class="fa fa-file-word"></i> Scarica o stampa
+					</button>
+				</form>
+
+				<form id="prnfrm" name="prnfrm" action="{app.settings.reportUrl}?report={report}" method="POST" onsubmit="{prePrint}" class="h">
+					<input type="hidden" id="data" name="data" value="{JSON.stringify(data)}" />
+					<button type="submit" class="h" target="_blank">
+				</form>
+
+			</section>
+		</article>
+	</section>
+	<style>
+		.card label{margin-top:.5em;color:#666}
+	</style>	
+	<script>
+		var me=this
+		me.prn=false
+		me.data=[]
+		me.lbls=[]
+		me.reports=[
+			{file:"a16",name:"Allegato 16"},
+			{file:"a22",name:"Allegato 22"},
+			{file:"a23",name:"Allegato 23"},
+			{file:"a23fad",name:"Allegato 23 FAD"}
+		]
+		me.report=false
+		me.setReport=function(e){
+			me.report=me.refs.report.value
+			switch (true){
+				case (me.report==='a22'):
+					me.showPersona=false
+					me.showDal=true
+					me.showCorso=true
+				break;				
+				case (me.report==='a23'):
+					me.showPersona=true
+					me.showDal=true
+					me.showCorso=true
+				break;
+				case (me.report==='a23fad'):
+					me.showPersona=true
+					me.showDal=true
+					me.showCorso=true
+				break;
+				case (me.report==='a16'):
+					me.showPersona=false
+					me.showDal=false
+					me.showCorso=true
+				break;
+				default:
+				me.report=false
+				me.showPersona=me.showDal=me.showCorso=false
+			}
+			me.update({
+				report: me.report,
+				showPersona:me.showPersona,
+				showDal:me.showDal,
+				showCorso:me.showCorso,
+
+			})
+			me.setGiorni()
+		}
+		me.store=app.f.service('orari')
+		me.maxDal=false 
+		me.road=app.road
+		me.fltCorsi=function(r){return parseInt(r.manuale)}
+		me.corsi=app.stores.corsi.data && app.stores.corsi.data.filter(me.fltCorsi)||[]
+		me.tipologie=app.stores.tipologie.data||[]
+		me.rubrica=app.stores.rubrica.data||[]
+		me.discipline=app.stores.discipline.data||[]
+		me.dal=moment().startOf('month').format('YYYY-MM-DD')
+		me.al=moment().endOf('month').format('YYYY-MM-DD')
+		me.setGiorni=function(v){
+			/*
+			me.giorni=[me.dal]
+			for (var i=1;i<6;i++){
+				var day=moment(me.dal).add(i,'days').format('YYYY-MM-DD')
+				if (day>me.al) return
+				me.giorni.push(day)
+			}
+			me.update({giorni:me.giorni})
+			*/
+			if (!me.refs.report) return
+			switch (true){
+				case (me.refs.report.value==='a22'):
+					if (!me.refs.dal) return
+					me.dal=moment(me.refs.dal.value).startOf('month').format('YYYY-MM-DD')
+					me.al=moment(me.refs.dal.value).endOf('month').format('YYYY-MM-DD')
+					me.refs.dal.value=me.dal
+					me.refs.al.value=me.al
+					me.update({dal:me.dal,al:me.al})
+				break
+			}
+		}
+		me.search=function(e){
+			e && e.preventDefault &&  e.preventDefault()
+			var report=me.refs.report.value
+
+			if (report=='a16'){				
+				var criteria = {
+					$limit:99999,
+					$sort:{username:1,giorno:1,tipologiabreve:1,ora:1,corsobreve:1}
+				}
+				var crs=me.refs.corsi && me.refs.corsi.selectedOptions
+				if (crs.length){ 
+					var crt=[]
+					for (var i=0;i<crs.length;i++){
+						crt.push(crs[i].value)
+					}
+					criteria.corsobreve={$in:crt}
+				}				
+				app.stores.cattedre.find({query:criteria}).then(me.vm).catch(app.fn.err)
+				return true
+			}
+			var criteria={
+				$limit:99999,
+				$sort:{username:1,giorno:1,tipologiabreve:1,ora:1,corsobreve:1}
+			}
+			if (me.showPersona){
+				criteria.username=(!app.isAdmin) ? app.user: me.refs.username.value
+			}
+			var crs=me.refs.corsi && me.refs.corsi.selectedOptions
+			if (crs.length){ 
+				var crt=[]
+				for (var i=0;i<crs.length;i++){
+					crt.push(crs[i].value)
+				}
+				criteria.corsobreve={$in:crt}
+			}
+			switch (true){
+				case (report==='a23'):
+					criteria.tipologiabreve={$in:['DZ','TU','TS','CR','PS','PR','DR','PU','MN']} //VS 2023-10-07: variate tipologie
+					break;
+				case (report==='a23fad'):
+					criteria.tipologiabreve={$in:['DF']} //VS 2022-02-30: tipologia FAD
+					break;
+				case (report==='a22'):
+					if (!criteria.corsobreve){
+						app.fn.err('Specificare un corso!')
+						return false
+					} 
+					criteria.$sort={tipologiabreve:1,username:1,giorno:1,ora:1}
+					break;
+			}
+			//console.info('corsobreve: ',me.refs.corsi.value,'me: ',me)
+			criteria.$and=[ { giorno: { $gte: me.refs.dal.value } }, { giorno: { $lte: me.refs.al.value } } ]
+			//console.info('criteria: ',criteria)
+			if (!app.isAdmin) criteria.username=app.user
+			me.store.find({query:criteria}).then(me.vm).catch(app.fn.err)
+		}		
+		me.vm= async function(rsp){
+			var dt=rsp && rsp.data || []
+			if (!dt.length){
+				app.fn.err('Nessun dato da stampare!')
+				return
+			}
+			var report=me.refs.report.value
+			me.data={}
+			var dn=[] //* array normalizzato
+			var i=1 //* contatore progressivo righe (giorni, con o senza rientro)
+			var ex={}//dt[0] //record precedente; all'inizio è costituito dalla prima voce
+			
+			/**** ELABORAZIONI SPECIFICHE PER REPORT ***/
+
+			switch (true){
+				case (report==='a23' || report==='a23fad') :
+					//* normalizzo le ore lavorate raggruppandole per giorno ed ore contigue (giorno/dalle/alle, con rientro)
+					var sameDay=0
+					for(var c=0;c<dt.length;c++){
+						var r=dt[c]
+						var p=(dn.length)? dn[dn.length-1]:{} //* record precedente: l'ultimo inserito nell'array normalizzato
+						//r.gg=moment(r.giorno).format('DD/MM/YYYY')
+						r.persona=app.fmt.persona(r.username),
+						r.gg=moment(r.giorno).format('DD/MM/YYYY')
+						r.corso=app.fmt.codiceeCorso(r.corsobreve)
+						r.disciplina=app.fmt.disciplina(r.disciplinabreve)
+						r.tipologia=app.fmt.tipologia(r.tipologiabreve)
+						r.dalle=app.fmt.dalle(r.ora)
+						r.alle=app.fmt.alle(r.ora)
+						r.n=i
+						r.tot=1
+						if (r.giorno==p.giorno && r.corsobreve==p.corsobreve && r.tipologiabreve==p.tipologiabreve && sameDay<3){
+							//* il giorno è lo stesso del record precedente, per cui lavoro su quello: se le ore sono contigue 
+							//* aumento l'ora di uscita ("dalle/alle"), se no definisco un rientro
+							sameDay++
+							p.tot=parseInt(p.tot)+1 //* incremento il numero di ore svolte nel giorno
+							switch (true){
+								case (r.dalle==p.alle) :
+									p.alle=r.alle
+									break
+								case (r.dalle==p.aller) :
+									if (p.daller) p.aller=r.alle
+									break
+								default: 
+									p.daller=r.dalle
+									p.aller=r.alle
+							}
+							//console.log(c,' - descrizione: ',p.descrizione)
+							if (r.descrizione!=ex.descrizione) p.descrizione+=' - '+r.descrizione 
+						}else{
+							//* nuovo giorno: bisogna aggiungerlo all'elenco dei giorni, che verrà
+							//console.log(c,' NUOVO: - descrizione: ',r.descrizione)
+							sameDay=0
+							dn.push(r)
+							i++
+						}
+						ex=r
+					}
+					var d=dn.length && dn[0] || {}
+					me.data={
+						persona: d.persona||null,
+						mese: moment(d.giorno).format('MMMM'),
+						corso: d.corso,
+						orario:dn
+					}
+				break
+				case (report==='a22'):
+					//console.info('docenti: ',dt)
+					//return false
+					for(var c=0;c<dt.length;c++){
+						//console.info(primo giro: raggruppo e normalizzo (non potendo fare tale richiesta direttamente))
+						var r=dt[c]
+						var p=(dn.length)? dn[dn.length-1]:{} //* record precedente: l'ultimo inserito nell'array normalizzato
+						r.g=parseInt(moment(r.giorno).format('D'))
+						if (r.username==ex.username && r.tipologiabreve==ex.tipologiabreve){
+							//console.log('user,r,ex,p: ',r.username,r,ex,p)
+							if (r.giorno==ex.giorno){
+								//console.log('user,r,p: ',r.username,r.g,p.g, "g"+r.g.toString())
+								p["g"+r.g.toString()]++ //* incremento il numero di ore svolte nel giorno
+								//console.log('user,r,p: ',r.username,r.g,p.g, r["g"+r.g.toString()])
+							} else{
+								p["g"+r.g.toString()]=1
+							}
+							p.mese++
+							//p.prec=parseInt(p.progress)-p.mese
+						}else{
+							//console.info('primo giro',r,ex)
+							r.cognome=app.fmt.cognome(r.username)
+							r.nome=app.fmt.nome(r.username)
+							r.dipe=app.fmt.dipe(r.username)
+							r.tipologia=app.fmt.tipologia(r.tipologiabreve)
+							r.n=i
+							r["g"+r.g.toString()]=1
+							r.mese=1
+							//r.progress=0
+							let rsp= await me.store.find({query:{username: r.username.value,corsobreve:r.corsobreve,$limit:1}}) //.then(rsp => {r.progress=rsp.total})
+							r.progress=rsp.total||0
+							dn.push(r)
+							i++
+						}
+						ex=r
+					}
+					for(var x=0;x<dn.length;x++){
+						//console.info('secondo giro: recupero le ore svolte in totale nel corso per tale docente e tipologia')
+						var r=dn[x]
+						//console.info('r: ',r)
+						let rsp= await me.store.find({query:{username: r.username,corsobreve:r.corsobreve,tipologiabreve:r.tipologiabreve,$limit:1, giorno: { $lte: me.refs.al.value }}})
+						//console.info('rsp: ',rsp)
+						r.progress=rsp.total
+						r.prec=parseInt(r.progress)-r.mese
+					}
+					var d=dt.length && dt[0] || {}
+					me.data={
+						mese: moment(d.giorno).format('MMMM'),
+						corso: app.fmt.corso(d.corsobreve||null),
+						codice: app.fmt.codiceCorso(d.corsobreve||null),
+						orario:dn
+					}
+					//console.info('dati in stampa: ',me.data)
+				break
+				case (report==='a16'):
+					for(var c=0;c<dt.length;c++){
+						//qui lavoro sulle cattedre e non sull'orario
+						var r=dt[c]
+						r.dipe=app.fmt.dipe(r.username)
+						r.persona=app.fmt.persona(r.username)
+						r.tipologia=app.fmt.tipologia(r.tipologiabreve)
+						r.disciplina=app.fmt.disciplina(r.disciplinabreve)
+						r.n=c+1
+						dn.push(r)
+					}
+					var d=dn.length && dn[0] || {}
+					me.data={
+						corsobreve:d.corsobreve,
+						corso: app.fmt.corso(d.corsobreve||null),
+						codice: app.fmt.codiceCorso(d.corsobreve||null),
+						orario:dn
+					}
+					console.info('dati in stampa: ',me.data)
+				break
+			}
+			/*** FINE ELABORAZIONI ****/
+			// valutare se chiudere con .then anziché settimeout
+			me.update({report:me.refs.report.value,data:me.data})
+			setTimeout(function(){
+				$('#prnfrm').submit()
+			},200)
+		}
+		me.vmCattedre=function(rsp){
+			me.update({cattedre:rsp && rsp.data	||[]})
+		}
+		me.vmOre=function(rsp){
+			me.update({ore:rsp && rsp.data	||[]})
+		}
+		me.vmCorsi=function(rsp){
+			me.update({corsi:rsp && rsp.data && rsp.data.filter(me.fltCorsi) ||[]})
+		}
+		me.vmRubrica=function(rsp){
+			me.update({rubrica:rsp && rsp.data	||[]})
+		}
+		me.vmDiscipline=function(rsp){
+			me.update({discipline:rsp && rsp.data	||[]})
+		}
+		me.vmTipologie=function(rsp){
+			me.update({tipologie:rsp && rsp.data||[]})
+		}		
+		me.vmLabels=function(rsp){
+			me.update({labels:rsp && rsp.data||[]})
+		}
+		me.fmtDisciplina=function(e){
+			return app.fmt.disciplina(e)
+		}
+		me.fmtCorso=function(e){
+			return (me.abbrevia) ? e : app.fmt.corso(e) 
+		}		
+		me.init=function(){
+			if (!me.corsi.length) app.corsiLoad()
+			me.setGiorni()
+			app.pgs.reports=me
+		}
+		me.ready=function(){
+			/*
+			console.info('ready')
+			if (me.prn){
+				//$('#data').val(JSON.stringify({data:me.data,persona:me.persona,tot:me.tot,dal:me.dal,al:me.al}))
+				$('#prnfrm').submit()
+				console.info('submit: ',me.prn)
+				me.prn=false
+				me.update({prn:false})
+			}
+			*/
+		}
+		/*
+		me.read=me.search
+		me.store.on('created', me.search)
+		me.store.on('updated', me.search)
+		me.store.on('removed', me.search)
+		*/
+		me.road.on('corsi-loaded',me.vmCorsi)
+		me.road.on('ore-loaded',me.vmOre)
+		me.road.on('rubrica-loaded',me.vmRubrica)
+		me.road.on('tipologie-loaded',me.vmTipologie)
+		me.road.on('labels-loaded',me.vmLabels)
+		me.road.on('discipline-loaded',me.vmDiscipline)		
+		me.road.on('log-in', me.init)
+
+		me.on('before-mount', me.init)
+		//me.on('updated', me.ready)
+		
+	</script>
+</reports>

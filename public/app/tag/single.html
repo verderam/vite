@@ -1,0 +1,589 @@
+﻿<single class="flex" data-seq="{opts && opts.seq}">
+		<section class="orari" style="resize:both;overflow:auto;border:1px silver solid;padding:.4em;margin:.2em;page-break-after:always">
+			<div class="hp flex">
+				<form class="srcfrm" onsubmit="{search}">
+					Giorno <input type="date" onblur="{setDal}" value="{dal}" class="wa" />
+					
+					<a onclick="{copy}" class="button bg-orange" if="{data.length}" data-tooltip="copia l'orario di questa settimana per incollarlo in un'altra">
+						<i class="fa fa-copy"></i>
+					</a>
+					<a onclick="{paste}" if="{clipBoard.data && clipBoard.data.length}" class="button" data-tooltip="incolla l'orario copiato">
+						<i class="fa fa-paste"></i>
+					</a>
+					&nbsp;&nbsp;
+					<a onclick="{clear}" if="{data.length}" class="button error close" data-tooltip="svuota completamente la tabella, eliminando tutte le voci">
+						<i class="fa fa-trash-alt" ></i>
+					</a>
+				</form>	
+				<form class="prifo" id="orari-prn" if="{corsobreve}" action="{app.settings.reportUrl}?report=settimana" target="_blank" method="POST" onsubmit="{prePrint}">
+					<button type="submit" class="h" title="stampa su pdf"></button>
+					<i class="fa fa-file-pdf-o"></i>
+					<input type="hidden" id="orari-frag" name="frag" />
+					<input type="hidden" id="orari-data" name="data" />
+					<input type="hidden" name="prefix" value="{app.settings.prefix}" />
+				</form>
+			</div>		
+			<article class="flex">
+				<aside style="background:azure;min-width:200px;max-width:250px;min-height:200px;resize:both;overflow:auto" class="hp">
+					<h3 ondrop="{dropDel}" ondragover="{allowDrop}" title="trascina qui un elemento per eliminarlo">
+						Cattedre
+						<span class="ko" >
+							<i class="fa fa-trash-alt"></i>
+						</span>
+					</h3>
+					<h5 class="daticorso" show="{corsobreve}">{app.fmt.corso(corsobreve)}</h5>
+					<div ondrop="{dropCattedre}" ondragover="{allowDrop}" style="min-height:300px">
+						<p each="{i in cattedre}" draggable="true" ondragstart="{drag}" class="{i.svolte>=i.ore ? 'stop' : ''}">
+							<b class="">{i.disciplinabreve}</b>	{i.tipologiabreve}:	<b>{app.fmt.cono(i.username)}</b> 
+							<span class="oreinfo info-{i.cl}"><i>{i.svolte}/</i>{i.ore}</span>
+						</p>
+						<button onclick="{showCC}" hide="{cc}">
+							<i class="fa fa-plus bg-olive"></i>
+						</button>
+						<section class="hp" show="{cc}" style="background-color:lightcyan;margin-top:.5em;padding:.5em">
+							Componi una cattedra
+							<span class="nc" draggable="true" ondragstart="{drag}">
+								<i class="fa fa-bars"></i> 
+								<select ref="disciplinabreve" class="stack">
+									<option each="{m in discipline}" key="{m._id}" value="{m.disciplinabreve}">
+										{m.disciplinabreve}: {m.disciplina}
+									</option>
+								</select>
+								<select ref="tipologiabreve"  class="stack">
+									<option each="{m in tipologie}" key="{m._id}" value="{m.tipologiabreve}">
+										{m.tipologiabreve}: {m.tipologia}
+									</option>
+								</select>
+								<select ref="username"  class="stack">
+									<option each="{m in docenti}" key="{m._id}" value="{m.username}">
+										{m.username}: {m.cognome} {m.nome}
+									</option>
+								</select>
+								<input type="number" min="1" ref="ore" value="1" placeholder="ore" style="max-width:5em" title="numero di ore" />
+								e trascinala nella griglia o nell'elenco.
+							</span>
+							<button onclick="{hideCC}">
+								<i class="fa fa-minus"></i>
+							</button>
+						</section>
+	
+					</div>
+				</aside>
+				<div class="paper" style="page-break-after:always">
+					<section id="priora" class="flex" style="max-width:300px">
+						<table class="daytbl">
+							<colgroup>
+								<col style="width:10em" />
+							</colgroup>
+							<thead>
+								<th>
+									<p class="ac">
+										{app.fmt.shrtDate(dal)}
+									</p>
+								</th>
+								<!--
+								<th>
+									<a href="#" onclick="{swOra}">Dalle</a>
+								</th>
+								<th>Alle</th>
+								-->
+								<th ondrop="{dropDel}" class="ac gc" ondragover="{allowDrop}" each="{c in corsi}">
+									<a href="#" onclick="{chgCorso}">{c.corsobreve}</a>
+								</th>
+							</thead>
+							<tbody>
+								<tr each="{o,io in ore}" no-reorder>
+									<th  ondrop="{dropDel}" class="ac" ondragover="{allowDrop}">
+										{o.ora}
+									</th>
+									<!-- 
+									<th  ondrop="{dropDel}" class="ac" ondragover="{allowDrop}">
+										<span if="{!ora}">{o.dalle}</span>
+										<input if="{ora}" type="time" value="{o.dalle}" onchange="{mora}" required />
+									</th>
+									<th  ondrop="{dropDel}" class="ac" ondragover="{allowDrop}">
+										{o.alle}
+									</th>
+									-->
+									<td data-giorno="{dal}" data-ora="{o.ora}" ondrop="{drop}" ondragover="{allowDrop}" class="dz gc fc {c.corsobreve==corsobreve ? 'tsel':''}" data-dalle="{o.dalle}" each="{c in corsi}"  data-corsobreve="{c.corsobreve}">
+										<div class="tdwr">
+											<table clas="it" each="{i,ix in data}" no-reorder key="{i._id}" if="{i.giorno==dal && i.ora==o.ora && i.corsobreve==c.corsobreve}" draggable="true" ondragstart="{drag}" ondragover="{allowDrop}" data-giorno="{dal}" data-corsobreve="{c.corsobreve}" data-ora="{o.ora}" class="{i.stato} {i.tipologiabreve==='DO' ||  i.tipologiabreve==='DZ'  || i.tipologiabreve==='CO' ? '':'np'}" data-dalle="{o.dalle}" ondblclick="{edit}">
+												<tr>
+													<td class="ac">
+														<span>
+															{i.dalle||o.dalle}<br />{i.alle||o.alle}
+														</span>
+													</td>
+													<td>
+														<b class="tdd mat" data-giorno="{dal}" data-ora="{o.ora}"  data-corsobreve="{c.corsobreve}">
+															{i.tipologiabreve==='DO' ||  i.tipologiabreve==='DZ' || i.tipologiabreve==='DF'   ? app.fmt.disciplina(i.disciplinabreve):app.fmt.tipologia(i.tipologiabreve)}
+														</b>
+														<br />
+														<span class="tdu" data-giorno="{dal}" data-ora="{o.ora}"  data-corsobreve="{c.corsobreve}">
+															{app.fmt.cono(i.username)}
+														</span>
+														<span class="label np" each="{l in i.etichette}">
+															{l}
+														</span>
+														<a if="{i.alert}" onclick="{loadUser}" data-tooltip="Attribuzione in conflitto!" style="color:red!important">
+															<i class="fa fa-exclamation-triangle"></i>
+														</a>												
+													</td>
+												</tr>
+											</table>
+										</div>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+				</div>
+			</article>
+			<p class="small h hp">
+				<i class="fa fa-lightbulb"></i>
+				Componi una cattedra oppure sceglila dall'elenco. 
+				Al termine trascinala nella casella corrispondente all'orario desiderato. 
+				Per eliminare un'assegnazione, trascinala sul cestino. 
+				Per duplicare un elemento tieni premuto CTRL mentre lo trascini. 
+			</p>
+			<div id="tmpora" class="hp h"></div>
+		</section>
+		<oram if="{cr._id}" cr="{cr}"></oram>
+		<style>
+			table{table-layout: fixed}
+			table.it,.it td, .it tr, .it th{border:0}
+			tr:nth-child(even) {background:transparent;}
+			th{font-weight:normal;}
+			th,td{border:1px lightgrey dotted;border-collapse:collapse}
+			td p{display:inline-block}
+			.daytbl{margin-right:.5em}
+			.tsel{background-color:azure}
+			.tdwr{width:12em}
+			.oreinfo{margin-left:.5em;padding:.3em;}
+			.stop{color:red!important}
+		</style>	
+		<script>
+			var me=this
+			me.cr={}
+			me.range={start:8,end:17,step:0.5}
+			me.data=[]
+			me.stati=app.statiCorsi||[]
+			me.tot=0
+			me.clip={}
+			me.road=app.road
+			me.isAdmin=app.isAdmin
+			me.isDirector=app.isDirector
+			me.ro=!me.isAdmin
+			me.clipBoard=app.clipBoard||[]
+			me.ora=false
+			me.oreStore=app.stores.ore
+			me.oreDefault=[
+				{ora:1,dalle:'08:00',alle:'09.00'},
+				{ora:2,dalle:'09:00',alle:'10.00'},
+				{ora:3,dalle:'10:00',alle:'11.00'},
+				{ora:4,dalle:'11:00',alle:'12.00'},
+				{ora:5,dalle:'12:00',alle:'13.00'},
+				{ora:6,dalle:'13:00',alle:'14.00'},
+				{ora:7,dalle:'14:00',alle:'15.00'},
+				{ora:8,dalle:'15:00',alle:'16.00'}
+			]
+			me.ore=(me.oreStore.data && me.oreStore.data.length)?  app.stores.ore.data.slice(0) : me.oreDefault.slice(0)
+			me.orario=[]
+			me.swOra=function(e){
+				e && e.preventDefault()
+				me.update({ora:!me.ora})
+			}
+			me.mora=function(e){
+				e && e.preventDefault()
+				var d=e.item
+				var o = me.ore
+				var n=e.target.value
+				o[d.io].dalle=n
+				//o[d.io].alle=moment(n).add(1,'hours').format('HH:mm')
+				o[d.io].alle=moment().set({hours:n.substring(0,2),minutes:n.substring(3,5)}).add(1,'hours').format('HH:mm')
+				me.update({ore:o})
+				var dt={corsobreve:me.corsobreve,giorno:me.dal,ore:o}
+				if (me.oca && me.oca._id){
+					console.info('UPDATE oca: ',me.oca,' o: ',o)
+					me.ocaStore.update(me.oca._id,dt).catch(app.fn.err)
+				}else{
+					me.ocaStore.create(dt).catch(app.fn.err)
+					console.info('INSERT oca: ',me.oca,' o: ',o)
+				}
+				//me.ocaStore.create({corsobreve:me.corsobreve,giorno:me.dal,ore:me.ore})
+			}
+			me.corsi=app.stores.corsi.data && app.stores.corsi.data.filter(function(r){return !r.stato}) || []
+			me.tipologie=app.stores.tipologie.data
+			me.docenti=app.stores.rubrica.data
+			me.discipline=app.stores.discipline.data
+			me.store=app.f.service('orari')
+			me.corsiStore=app.f.service('corsi')
+			me.cattedreStore=app.f.service('cattedre')
+			me.ocaStore=app.stores.orarigiorni
+			me.cattedre=[]
+			me.cattedreFilter=false
+			me.corsobreve=false
+			//me.dal=moment().startOf('week').format('YYYY-MM-DD')
+			me.dal=moment().format('YYYY-MM-DD')
+			me.al=moment().endOf('week').format('YYYY-MM-DD')
+			me.dalCopy=moment(me.dal).add(7,'days').format('YYYY-MM-DD')
+			me.error=function(msg){
+				app.fn.notify(JSON.stringify(msg))
+				console.error(msg)
+			}
+			me.setCorsi=function(e){
+				var f=e && e.target && e.target.value
+				if (f){ 
+					var flt=function(r){
+						return (f==='_') ? !r.stato : r.stato==f
+					}
+					me.corsi=app.stores.corsi.data.filter(flt)
+				}else{
+					me.corsi=app.stores.corsi.data
+				}
+				me.update({corsi:me.corsi,corsobreve:me.corsi[0].corsobreve,data:[]}) //TODO
+				me.search()
+			}
+			me.setGiorni=function(v){
+				me.giorni=[me.dal]
+				me.orari=[]
+				for (var i=1;i<5;i++){
+					var day=moment(me.dal).add(i,'days').format('YYYY-MM-DD')
+					if (day>me.al) return
+					me.giorni.push(day)
+				}
+				me.update({giorni:me.giorni})
+			}		
+			me.search=function(e){
+				e && e.preventDefault && e.preventDefault()
+				var criteria={$limit:9999,$sort:{giorno:1,tipologiabreve:-1,disciplinabreve:1}}
+				criteria.$and=[ { giorno: me.dal } ]
+				me.getOre()
+				me.store.find({query:criteria}).then(me.vm).catch(app.fn.err)
+				me.getCattedre()
+			}
+			me.getCattedre=function(){
+				var criteria={corsobreve:me.corsobreve,$sort:{disciplinabreve:1,tipologiabreve:-1}}
+				if (me.cattedreFilter) criteria.tipologiabreve={$in:['DO','CO']}
+				me.cattedreStore.find({query:criteria}).then(me.vmCattedre).catch(app.fn.err)
+			}
+			me.getOre=function(e){
+				if (!me.corsobreve) return
+				var cri={corsobreve:me.corsobreve,giorno:me.dal}
+				me.ocaStore.find({query:cri}).then(me.vmOca).catch(app.fn.err)
+			}
+			me.getCorsi=function(){
+				var criteria={$sort:{corsobreve:1,corso:1}}
+				me.corsiStore.find({query:criteria}).then(me.vmCorsi).catch(app.fn.err)
+			}		
+			me.vm=function(rsp){
+				me.raw=rsp
+				me.data=rsp.data || []
+				//me.setGiorni()
+				me.update({data:me.data,tot:me.data.length})
+	
+				setTimeout(function(){
+					me.check()
+				},300)
+			}
+			me.vmCattedre=function(rsp){
+				me.update({cattedre:rsp && rsp.data	||[]})
+			}
+			me.vmOre=function(rsp){
+				me.update({ore:rsp && rsp.data	||[]})
+			}
+			me.vmOca=function(rsp){
+				if (rsp && rsp.total){
+					me.oca=rsp.data[0]
+					me.ore=me.oca.ore
+					me.update({ore:me.ore,oca:me.oca})
+				}
+			}		
+			me.vmCorsi=function(rsp){
+				me.corsi=rsp && rsp.data && rsp.data.filter(function(r){return !r.stato})
+				me.corsobreve=me.corsi[0].corsobreve||null
+				me.update({corsi:me.corsi,corsobreve:me.corsobreve}||[])
+			}
+			me.vmRubrica=function(rsp){
+				me.update({docenti:rsp && rsp.data	||[]})
+			}
+			me.vmDiscipline=function(rsp){
+				me.update({discipline:rsp && rsp.data	||[]})
+			}
+			me.vmTipologie=function(rsp){
+				me.update({tipologie:rsp && rsp.data||[]})
+			}
+			me.setDal=function(e){
+				me.dal=moment(e.target.value).startOf('week').format('YYYY-MM-DD')
+				me.al=moment(e.target.value).endOf('week').format('YYYY-MM-DD')			
+				me.search()
+			}
+			me.add=function(e){
+			}
+			me.del=function(e){
+				
+			}
+			me.copy=function(e){
+				me.clipBoard={
+					corsobreve:me.corsobreve,
+					dal:me.dal,
+					data:me.data
+				}
+				me.update({clipBoard:me.clipBoard})
+				////console.log('copied: ',me.clipBoard)
+			}
+			me.clear=function(e){
+				if (!confirm('Eliminare tutte le voci?')) return
+				me.data.map(function(r){
+					me.store.remove(r._id)
+				})
+			}
+			me.paste=function(e){
+				if (!me.isAdmin) return
+				if (me.lock) return
+				//if (me.corsobreve===me.clipBoard.corsobreve && me.dal===me.clipBoard.dal) return
+				//if (me.prevCorso===me.clipBoard.corsobreve && me.prevDal===me.clipBoard.dal) return
+				me.lock=true
+				//me.prevCorso=me.corsobreve
+				//me.prevDal=me.dal			
+				var prevDate=moment(me.dal)
+				var newDate=moment(me.clipBoard.dal)
+				me.delta=prevDate.diff(newDate, 'days')
+				//console.info('delta',me.delta)
+				me.clipBoard.data.map(function(c){
+					var n=JSON.parse(JSON.stringify(c))
+					delete(n._id)
+					//n.corsobreve=me.corsobreve
+					n.giorno=moment(n.giorno).add(me.delta,'days').format('YYYY-MM-DD')
+					me.store.create(n).catch(app.fn.err)
+				})
+				setTimeout(function(){
+					me.update({lock:false})
+					me.check()
+				},200)
+			}
+			me.setDal=function(e){
+				me.dal=e.target.value
+				me.search()
+			}
+			me.setCorsobreve=function(e){
+				me.corsobreve=e && e.target && e.target.value
+				me.search()
+			}
+			me.chgCorso=function(e){
+				e && e.preventDefault()
+				var c=e && e.item && e.item.c && e.item.c.corsobreve
+				if (c){ 
+					me.update({corsobreve:c})
+					me.getCattedre()
+				}
+			}
+			me.setVar=function(e){
+				//console.info('setVar',e)
+			}
+			me.init=function(){
+				app.indi=me
+				//me.setGiorni()
+				app.road.trigger('load-ore')
+				me.isAdmin=app.isAdmin
+				me.isDirector=app.isDirector
+				me.update({isAdmin:me.isAdmin,isDirector:me.isDirector})
+				me.search()
+				//console.info('ro',me.ro)
+			}
+			me.allowDrop=function(e={}){
+				e.preventDefault && e.preventDefault() //# consente di trascinare un elemento
+				//e.target && e.target.classList.add('dragging')
+			}
+			me.drag=function(e={}){
+				me.clip=e.item && e.item.i || {}  //# rilascia l'elemento nella posizione desiderata
+				me.copied=e.ctrlKey
+				me.dest=e
+			}
+			me.drop=function(e={}){
+				if(!me.isAdmin) return
+				var r={}
+				if (me.copied){
+					r=JSON.parse(JSON.stringify(me.clip))
+					delete(r._id)				
+					delete(r.corsobreve)				
+					me.copied=false
+				}else{
+					r=me.clip
+				}
+				//$('.dragging').removeClass('dragging')
+				var n=e.target.dataset
+				r.corsobreve=n.corsobreve || me.corsobreve
+				if (!r.corsobreve) return
+				if (!r.username) r.username=me.refs.username.value
+				if (!r.tipologiabreve) r.tipologiabreve=me.refs.tipologiabreve.value
+				if (!r.disciplinabreve) r.disciplinabreve=me.refs.disciplinabreve.value
+				if (r.alert) delete(r.alert)
+				r.giorno=n.giorno
+				r.ora=n.ora
+				r.dalle=n.dalle
+				r.alle=n.alle
+				if (r.anno){
+					delete(r._id)
+					delete(r.anno)
+				}
+				if (r.ore) delete (r.ore)
+				/*e.target.style.background=me.background*/
+				if (!r.giorno) return
+				if (!r._id){
+					me.store.create(r).catch(app.fn.err)
+				}else{
+					me.store.update(r._id,r).catch(app.fn.err)
+					//me.update({data:me.data})
+				}
+				me.clip={}
+			}
+			me.dropCattedre=function(e={}){
+	
+				if(!me.isAdmin) return
+				var r=me.clip||{}
+				if (r._id) return
+				r.anno=app.anno
+				r.corsobreve=me.corsobreve
+				r.username=me.refs.username.value
+				r.tipologiabreve=me.refs.tipologiabreve.value
+				r.disciplinabreve=me.refs.disciplinabreve.value
+				r.ore=me.refs.ore.value||0
+				me.cattedreStore.create(r).catch(app.fn.err)
+				me.clip={}
+			}		
+			me.dropDel=function(e={}){
+	
+				if(!me.isAdmin) return
+				var r=me.clip
+				var store=(r.anno) ? me.cattedreStore : me.store
+				store.remove(r._id).catch(app.fn.err)
+			}
+			me.mostraCorsi=function(e){
+				app.fn.notify('Work in progress...')
+			}
+			me.prePrint=function(e){
+				e && e.preventDefault &&  e.preventDefault()
+				me.corso=app.fmt.corso(me.corsobreve)
+				me.datiCorso=app.stores.corsi.data.filter(function(c){
+					return c.corsobreve===me.corsobreve
+				})
+				me.codice=me.datiCorso[0].codice
+				//console.info(JSON.stringify(me))			
+				/*
+				document.querySelector('#orari-data').value=JSON.stringify({data:me.data,tot:me.tot,dal:me.dal,al:me.al})
+				document.querySelector('#orari-frag').value=document.querySelector('#priora').innerHTML
+				document.querySelector('#orari-prn').submit()
+				*/
+				$('#tmpora').html($('#priora').html())
+				$('#tmpora .np').remove()
+				$('#orari-data').val(JSON.stringify({corso:me.corso,codice:me.codice,data:me.data,tot:me.tot,dal:me.dal,al:me.al}))			
+				$('#orari-frag').val($('#tmpora').html())
+				$('#orari-prn').submit()			
+			}
+			me.expPDF=function(e){
+				document.querySelector('#orari-prn').submit()
+			}
+			me.saved=function(record){
+				for (var i=0;i<me.data.length;i++){
+					if (me.data[i]._id===record._id) {
+						me.data[i]=record
+						me.update({data:me.data})
+						break
+					}
+				}
+			}
+			me.created=function(data){
+				//console.info('created',data)
+				return
+				me.data.push(data)
+				me.update({data:me.data})
+			}
+			me.check=function(){
+				var alert=false
+				me.data.map(function(d){
+					var criteria={giorno:d.giorno,ora:d.ora,username:d.username}
+					me.store.find({query:criteria}).then(function(r){
+						d.alert=r.total-1||false
+						if (d.alert) me.update({data:me.data})
+					})
+				})
+				//setTimeout(function(){
+					me.cattedre.map(function(d){
+						d.svolte=0
+						var criteria={corsobreve:d.corsobreve,username:d.username}
+						if (d.tipologiabreve) criteria.tipologiabreve=d.tipologiabreve
+						if (d.disciplinabreve) criteria.disciplinabreve=d.disciplinabreve
+						me.store.find({query:criteria}).then(function(r){
+							//if (!r.total) console.log('cattedre: ',r)
+							if (r.total) d.svolte=r.total
+							me.update({cattedre:me.cattedre})
+						})
+					})
+				//},200)
+				
+			}
+			me.loadUser=function(e){
+				if (!(app.isAdmin || app.isDirector)) return
+				var d= e && e.item && e.item.i||{}
+				route('orario/'+d.username+'/'+d.giorno)
+			}
+			me.showCC=function(){
+				me.update({cc:true})
+			}
+			me.hideCC=function(){
+				me.update({cc:false})
+			}
+			me.edit=function(e){
+				console.info('editing: ',e,e.item)
+				var r=e.item && e.item.i || {}
+				me.update({cr:r})
+				//ora.unmount()
+				riot.mount('ora', {cr:r})
+				riot.update()
+			}
+			me.read=me.search
+			
+			me.store.on('created',me.read)
+			me.store.on('updated',me.read)
+			me.store.on('removed', me.read)
+			
+			me.cattedreStore.on('created', me.getCattedre)
+			me.cattedreStore.on('removed', me.getCattedre)		
+			me.cattedreStore.on('error', me.error)		
+			
+			me.road.on('cattedre-loaded',me.vmCattedre)
+			me.road.on('ore-loaded',me.vmOre)
+			me.road.on('corsi-loaded',me.vmCorsi)
+			me.road.on('rubrica-loaded',me.vmRubrica)
+			me.road.on('tipologie-loaded',me.vmTipologie)
+			me.road.on('discipline-loaded',me.vmDiscipline)
+	
+			me.road.on('oram-close', function(e){
+				console.info('oram-close: ',e)
+				me.update({cr:{}})
+			})		
+			me.road.on('log-in', me.init)		
+			me.on('before-mount', me.init)
+	
+	/*** ROUTING */
+	
+	
+			var rt=function(view,corso,giorno) {
+				//console.info('rt quadro: ',corso,giorno)
+				if (corso) me.corsobreve=corso.toUpperCase()
+				if (giorno){ 
+					me.dal=moment(giorno).startOf('week').format('YYYY-MM-DD')
+					me.al=moment(giorno).endOf('week').format('YYYY-MM-DD')
+				}
+				if (corso||giorno) me.search()
+			}
+			
+			var r = route.create()
+			r(rt)
+	
+	 /*** /ROUTING */
+	
+		</script>
+		<!-- Per la stampa valutare piuttosto di utilizzare html-pdf npm server side: https://www.npmjs.com/package/html-pdf -->
+</single>

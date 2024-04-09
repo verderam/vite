@@ -1,0 +1,80 @@
+﻿<home>
+	<div id="main" class="paper" style="margin-top:4em">
+		<section class="ac">
+			<h1 style="letter-spacing:.3em" class="clear">
+				<img src="img/logobig.png" style="vertical-align:middle">
+				<br />
+				<span class="blue">Orario</span>
+				<span class="gray">Scolastico</span>
+			</h1>
+			<p style="margin:2em">
+				<b>{app.settings.name}</b>: 
+				{app.settings.slogan} 
+				<span class="gray"> versione</span>
+				<span class="blue">{app.settings.ver}</span>
+			</p>
+			<div if="{todo}">
+				<hr /> 
+				<h4 style="letter-spacing:.2em">TODO</h4>
+				<p each="{d,i in todo}">
+					[{i}] {d.todo}
+				</p>
+			</div>
+		</section>
+	</div>
+	<style>
+	</style>	
+	<script>
+		var me=this
+		me.error=false
+		me.user=false		
+		/*
+		var r = route.create()
+		r('*', function() {
+			dpd.users.me(function(user) {
+				me.user=user
+				me.update({user:user})
+			})
+		})	
+		*/
+		/*
+		me.store=app.stores.todo
+		me.store.on('created',function(data){
+			me.store.trigger('get')
+		})
+		me.store.on('loaded',function(data){
+			me.update({data:data})
+		})
+		app.pgs.home=me
+		*/
+		me.store=app.f.service('todo')
+		me.store.on('created', function(err,rsp){
+			me.read()
+		})
+		me.read=function(){
+		/*
+			me.store.find({},function(err,rsp){
+				if (err) app.fn.notify(err)
+				me.update({todo:rsp && rsp.data||[]})
+			})
+		*/
+			me.store.find({
+			  query: {
+				$limit: 99,
+				$sort: {
+				  _id: -1
+				}
+			  }
+			}).then(rsp => me.update({todo:rsp && rsp.data||[]})).catch(err => app.fn.notify(err))
+		}
+		me.init=function(){
+			app.pgs.home=me
+		}
+		me.ready=function(){
+			if (!app.user) return
+			if (!app.isAdmin) route('orario')
+		}
+		me.on('before-mount', me.init)
+		me.on('mount', me.ready)
+	</script>
+</home>

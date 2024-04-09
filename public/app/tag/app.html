@@ -1,0 +1,64 @@
+﻿<app>
+	<main id="main" style="padding:.5em">
+		<home hide="{ view !== 'home' }"></home>
+		<login hide="{ view !== 'login' }"></login>
+		<orari hide="{ view !== 'orari' }"></orari>
+		<orario hide="{ view !== 'orario' }"></orario>
+		<cattedre hide="{ view !== 'cattedre' }"></cattedre>
+		<impostazioni hide="{ view !== 'impostazioni' }"></impostazioni>
+		<statistiche hide="{ view !== 'statistiche' }"></statistiche>
+		<reports hide="{ view !== 'reports' }"></reports>
+		<content id="content"></content>
+	</main>
+	<script>
+		var me = this
+		me.view=null
+		me.id=null
+		me.views={}
+		me.loadView=function(v,id,opt){
+			//console.info('loadview v,id,opt:',v,id,opt)
+			me.view=v
+			me.id=id
+			me.opt=opt
+			if (me.views[v]) return
+			riot.compile('tag/'+v+'.html',function(){
+				me.views[v]=true
+				app.pg=riot.mount(v)[0]
+			})		
+		}
+		route(function(view,id,opt) {
+			//if (!app.f.get('user')) route('login')
+			/* */
+
+			if (!app.f.get('user')){
+				var u=localStorage.getItem('user')
+				app.f.authenticate({
+					username:u,
+					strategy:'jwt',accessToken:localStorage.getItem('feathers-jwt')
+				}).then(function(data){
+					//console.info('auth: ',data)
+					app.user=u.toLowerCase()
+					app.f.set('user', u)
+					app.initUser(u)
+				}).catch(function(message){
+					//console.error('localstorage login error: ',message)
+					route('login')
+				}).then(function(user) {
+					//console.info('user: ',user);
+					//app.f.set('user'.user)
+				})
+			}			
+
+			if (!view) {
+			  return route('home')
+			}	
+			me.loadView(view,id,opt)
+			me.update()
+		  })
+		route.start(true)
+		
+		window.dbg=me
+	</script>
+	<style>	
+  </style>
+</app>

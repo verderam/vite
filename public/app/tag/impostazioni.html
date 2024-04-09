@@ -1,0 +1,53 @@
+﻿<impostazioni>
+	<nav class="tb np">
+		<a  each="{m in mnu}" onclick="{setView}" data-pg="{m.pg}" class="button pseudo" title="">
+			<i class="fa fa-{m.ico||'table'}"></i> {m.lbl||app.fmt.title(m.pg)}
+		</a>		
+	</nav>
+	<section class="impostazioni" style="margin-top:7em">
+		<discipline hide="{ view !== 'discipline' }"></discipline>
+		<corsi hide="{ view !== 'corsi' }"></corsi>
+		<ore hide="{ view !== 'ore' }"></ore>
+		<oraricorsi hide="{ view !== 'oraricorsi' }"></oraricorsi>
+		<rubrica hide="{ view !== 'rubrica' }"></rubrica>
+		<tipologie hide="{ view !== 'tipologie' }"></tipologie>
+		<descrizioni hide="{ view !== 'descrizioni' }"></descrizioni>
+		<labels hide="{ view !== 'labels' }"></labels>
+		<todo hide="{ view !== 'todo' }"></todo>
+	</section>
+	<script>
+		var me=this
+		me.view=null
+		me.id=null
+		me.views={}
+		me.mnu=[
+			{pg:'discipline',lbl:'Discipline',ico:'table'},
+			{pg:'corsi'},
+			{pg:'ore'},
+			{pg:'oraricorsi',lbl:'Orari pers.',ico:'clock'},
+			{pg:'descrizioni'},
+			{pg:'rubrica'},
+			{pg:'tipologie'},
+			{pg:'labels',lbl:'Etichette'},
+			{pg:'todo'},
+		]
+		me.loadView=function(v,id){
+			me.view=v
+			me.id=id||null
+			if (me.views[v]) return
+			riot.compile('tag/'+v+'.html',function(){
+				me.views[v]=true
+				app.pgs.impostazioni=riot.mount(v)[0]
+			})
+			me.update({view:me.view})
+		}		
+		me.setView=function(e){
+			var dst=e.srcElement.value || e.srcElement.dataset.pg
+			me.update({view:null})
+			if (dst) me.loadView(dst)
+		}
+	</script>
+	<style>
+		
+	</style>
+</impostazioni>
